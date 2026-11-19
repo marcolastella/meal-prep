@@ -27,10 +27,11 @@
 <div class="app">
   <header class="top">
     <div class="brand">
+      <p class="eyebrow" id="house">🏡 La mia casa</p>
       <h1>Meal prep</h1>
       <p class="sub" id="fridge">10 pasti in un’ora</p>
     </div>
-    <button class="icon-btn sync" id="syncBtn" aria-label="Sincronizzazione e impostazioni"><span class="dot"></span><span class="sync-lbl" id="syncLbl">Locale</span></button>
+    <button class="house-btn sync" id="syncBtn" aria-label="Casa, persone e impostazioni"><span class="avs" id="avs"></span><span class="dot"></span></button>
   </header>
 
   <nav class="tabs" role="tablist" aria-label="Sezioni">
@@ -59,6 +60,8 @@
     <div class="sheet-body" id="sheetBody"></div>
   </div>
 </div>
+
+<div class="scan" id="scan" aria-hidden="true" role="dialog" aria-modal="true" aria-label="Scansiona QR"></div>
 
 <div class="cook" id="cook" aria-hidden="true" role="dialog" aria-modal="true" aria-label="Modalità cucina"></div>
 

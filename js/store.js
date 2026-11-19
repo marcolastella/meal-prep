@@ -80,6 +80,10 @@ export const store = {
   /** Dopo aver cambiato "casa" tutto lo stato locale va caricato sul nuovo spazio. */
   markAllDirty() { dirty = new Set(Object.keys(state)); write(DIRTY, [...dirty]); },
   hasDirty: () => dirty.size > 0,
+  /** Svuota lo stato locale (quando si entra in un'altra casa). */
+  clearAll() { state = {}; dirty = new Set(); write(KEY, state); write(DIRTY, []); emit("remote"); },
+  /** Chiavi che iniziano con un prefisso, con valore non nullo. */
+  entries(prefix) { return Object.entries(state).filter(([k, it]) => k.startsWith(prefix) && it.v != null).map(([k, it]) => [k.slice(prefix.length), it.v, it.t]); },
 };
 
 // Preferenze solo di questo dispositivo (non sincronizzate).

@@ -100,12 +100,14 @@ function renderSpesa() {
   let h = `<div class="prog">${ring(n, tot, n === tot ? "Spesa completata" : "Lista della spesa")}<span>${n} di ${tot} nel carrello</span></div></div>`;
   h += `<div class="chips"><button class="chip" data-act="share">↗ Condividi lista</button><button class="chip" data-act="reset-s">↺ Azzera</button></div>`;
   let any = false;
+  h += `<div class="groups">`;
   for (const g of SPESA) {
     const todo = g.items.map((t, i) => [t, `s:${g.id}:${i}`]).filter(([, k]) => !store.get(k));
     if (!todo.length) continue;
     any = true;
-    h += `<div class="grp"><h3>${g.emoji} ${g.name}</h3><span>${g.items.length - todo.length}/${g.items.length}</span></div><div class="list">${todo.map(([t, k]) => rowHTML(k, t, null)).join("")}</div>`;
+    h += `<section class="g"><div class="grp"><h3>${g.emoji} ${g.name}</h3><span>${g.items.length - todo.length}/${g.items.length}</span></div><div class="list">${todo.map(([t, k]) => rowHTML(k, t, null)).join("")}</div></section>`;
   }
+  h += `</div>`;
   if (!any) h += `<div class="empty"><span class="big">🛒</span>Tutto nel carrello! Scorri a sinistra per iniziare a cucinare.</div>`;
   const done = SPESA.flatMap((g) => g.items.map((t, i) => [t, `s:${g.id}:${i}`])).filter(([, k]) => store.get(k));
   if (done.length) h += `<details class="cart" data-open="cart"${openState.cart ? " open" : ""}><summary>Nel carrello (${done.length})</summary><div class="list">${done.map(([t, k]) => rowHTML(k, t, store.get(k))).join("")}</div></details>`;
@@ -141,9 +143,9 @@ function renderPrep() {
 function stepperHTML(m) {
   const n = portions(m.id);
   return `<div class="stepper" role="group" aria-label="Porzioni">
-    <button data-step="-1" data-sid="${m.id}" aria-label="Una porzione in meno"${n <= 1 ? " disabled" : ""}>−</button>
+    <button data-step="-1" data-sid="${m.id}" aria-label="Una porzione in meno"${n <= 1 ? " disabled" : ""}><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 12h12"/></svg></button>
     <span class="sv"><b>${n}</b>${n === 1 ? "porzione" : "porzioni"}</span>
-    <button data-step="1" data-sid="${m.id}" aria-label="Una porzione in più"${n >= MAXP ? " disabled" : ""}>+</button></div>`;
+    <button data-step="1" data-sid="${m.id}" aria-label="Una porzione in più"${n >= MAXP ? " disabled" : ""}><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 12h12M12 6v12"/></svg></button></div>`;
 }
 function eatHTML(m) {
   const v = store.get(`m:${m.id}`), on = !!v, w = who(v);
@@ -160,12 +162,14 @@ function renderPasti() {
   } else {
     h += `<div class="fresh"><span class="d">🌱</span><span>Dopo la preparazione hai ${PLAN.fridgeDays} giorni per gustarli al meglio. Ognuno si assembla in 5 minuti.</span></div>`;
   }
+  h += `<div class="meals">`;
   for (const m of PASTI) {
     const all = !!store.get("m:" + m.id);
     h += `<article class="meal${all ? " all" : ""}" style="--h:${m.hue}" data-meal="${m.id}" tabindex="0" role="button" aria-label="${esc(m.t)}: apri ricetta">
       <div class="mi"><h3>${esc(m.t)}</h3><div class="plates">${stepperHTML(m)}${eatHTML(m)}</div></div>
       <div class="me" aria-hidden="true">${m.emoji}</div></article>`;
   }
+  h += `</div>`;
   h += `<div class="chips" style="margin-top:8px"><button class="chip" data-act="reset-m">↺ Azzera i pasti</button></div>`;
   $("#p-2").innerHTML = h;
 }
@@ -218,13 +222,17 @@ function goTo(i, anim = true) {
   document.querySelectorAll(".tabs button").forEach((b, j) => { b.setAttribute("aria-selected", j === page); b.tabIndex = j === page ? 0 : -1; });
   document.querySelectorAll(".page").forEach((p, j) => p.setAttribute("aria-hidden", j !== page));
   prefs.set("page", page);
-  if (prev !== page && anim) {
+  if (prev !== page && anim && !isWide()) {
     buzz(5);
     motionBlur(strip, Math.min(6, 2.5 + Math.abs(prev - page) * 2));
     stagger($("#p-" + page));
   }
 }
 
+const wide = matchMedia("(min-width: 1024px) and (orientation: landscape), (min-width: 1200px)");
+const isWide = () => wide.matches;
+wide.addEventListener?.("change", () => { document.body.classList.toggle("wide", isWide()); setPos(0, false); });
+document.body.classList.toggle("wide", isWide());
 let g = null, swallowClick = false;
 pager.addEventListener("pointerdown", (e) => {
   if (e.button > 0 || e.target.closest("input,textarea,.ck-ing")) return;
@@ -236,7 +244,8 @@ addEventListener("pointermove", (e) => {
   if (!g.mode) {
     if (Math.abs(dx) < 9 && Math.abs(dy) < 9) return;
     if (Math.abs(dx) > Math.abs(dy) * 1.2) {
-      g.mode = g.row && dx > 0 ? "row" : "page";
+      g.mode = g.row && dx > 0 ? "row" : isWide() ? null : "page";
+      if (!g.mode) { g = null; return; }
       try { pager.setPointerCapture(g.id); } catch {}
       document.body.style.userSelect = "none";
     } else { g = null; return; }
@@ -337,6 +346,8 @@ function closeSheet(fromPop) {
 }
 sheet.addEventListener("click", (e) => { if (e.target.closest("[data-close]")) closeSheet(); });
 
+const tablet = matchMedia("(min-width: 744px)");
+const sheetT = (dy) => (tablet.matches ? `translate(-50%, calc(-50% + ${dy}))` : `translateY(${dy})`);
 (function sheetDrag() {
   let s = null;
   const start = (y, fromGrab) => { s = { y0: y, dy: 0, t0: performance.now(), active: fromGrab }; };
@@ -347,13 +358,13 @@ sheet.addEventListener("click", (e) => { if (e.target.closest("[data-close]")) c
     ev?.cancelable && ev.preventDefault();
     s.dy = Math.max(0, dy);
     sheet.classList.add("drag");
-    panel.style.transform = `translateY(${s.dy}px)`;
+    panel.style.transform = sheetT(s.dy + "px");
   };
   const end = () => {
     if (!s) return;
     sheet.classList.remove("drag");
     const v = s.dy / (performance.now() - s.t0);
-    if (s.active && (s.dy > 110 || v > 0.6)) { panel.style.transform = "translateY(100%)"; setTimeout(() => closeSheet(), 10); }
+    if (s.active && (s.dy > 110 || v > 0.6)) { panel.style.transform = sheetT("100vh"); setTimeout(() => closeSheet(), 10); }
     else panel.style.transform = "";
     s = null;
   };

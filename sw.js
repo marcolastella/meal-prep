@@ -1,5 +1,5 @@
 // Service worker: l'app funziona anche offline (in cucina il Wi-Fi non sempre c'è).
-const V = "mp-v5";
+const V = "mp-v6";
 const CORE = ["./", "index.html", "css/app.css", "js/app.js", "js/data.js", "js/store.js", "js/sync.js", "js/timers.js", "js/config.js", "manifest.webmanifest", "icons/icon.svg", "icons/icon-192.png", "icons/icon-512.png"];
 
 self.addEventListener("install", (e) => { e.waitUntil(caches.open(V).then((c) => c.addAll(CORE)).then(() => self.skipWaiting())); });

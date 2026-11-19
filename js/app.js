@@ -15,7 +15,7 @@ function applyTheme() {
   const p = prefs.get("theme", "auto");
   const dark = p === "dark" || (p === "auto" && mq.matches);
   document.documentElement.dataset.theme = dark ? "dark" : "light";
-  document.querySelectorAll('meta[name="theme-color"]').forEach((m) => (m.content = dark ? "#16130f" : "#f6f1e7"));
+  document.querySelectorAll('meta[name="theme-color"]').forEach((m) => (m.content = dark ? "#0b1510" : "#f3faf1"));
 }
 mq.addEventListener?.("change", applyTheme);
 applyTheme();
@@ -92,7 +92,7 @@ function renderPrep() {
     h += `<div class="hero"><h2>${n ? "Riprendi da dove eri" : "Un’ora, dieci pasti"}</h2><p>${n ? `Mancano ${tot - n} preparazioni.` : "Ti guido passo per passo, con i timer già pronti."}</p>
       <button class="btn light" data-cook="prep">▶ ${n ? "Continua" : "Inizia a cucinare"}</button></div>`;
   } else {
-    h += `<div class="hero" style="background:linear-gradient(135deg,#7ea14a,#4f7a2c)"><h2>Tutto pronto 🎉</h2><p>Dieci pasti in frigo. Buon appetito per i prossimi giorni.</p><button class="btn light" style="color:#4f7a2c" data-goto="2">Vai ai pasti →</button></div>`;
+    h += `<div class="hero" style="--x:1"><h2>Tutto pronto 🎉</h2><p>Dieci pasti in frigo. Buon appetito per i prossimi giorni.</p><button class="btn light" data-goto="2">Vai ai pasti →</button></div>`;
   }
   h += `<div class="prog">${ring(n, tot, "Preparazioni")}<span>${n} di ${tot} fatte${n < tot ? " · le cotture vanno in parallelo" : ""}</span></div></div>`;
   h += `<ol class="tl-list">`;
@@ -117,7 +117,7 @@ function renderPasti() {
     const days = PLAN.fridgeDays - Math.floor((Date.now() - pd) / DAY);
     h += `<div class="fresh${days <= 1 ? " warn" : ""}"><span class="d">${Math.max(0, days)}</span><span>${days > 0 ? `giorn${days === 1 ? "o" : "i"} di freschezza rimast${days === 1 ? "o" : "i"}. Consuma prima i piatti con le verdure crude.` : "Oltre i giorni consigliati: controlla bene prima di mangiare."}</span></div>`;
   } else {
-    h += `<div class="fresh"><span class="d">🥡</span><span>Dopo la preparazione hai ${PLAN.fridgeDays} giorni per gustarli al meglio. Ognuno si assembla in 5 minuti.</span></div>`;
+    h += `<div class="fresh"><span class="d">🌱</span><span>Dopo la preparazione hai ${PLAN.fridgeDays} giorni per gustarli al meglio. Ognuno si assembla in 5 minuti.</span></div>`;
   }
   for (const m of PASTI) {
     const e = [0, 1].map((j) => !!store.get(`m:${m.id}:${j}`));

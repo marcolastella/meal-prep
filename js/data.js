@@ -56,19 +56,19 @@ export const PREP = [
 ];
 
 export const PASTI = [
-  { id: "insalata", t: "Insalata di pasta con salsa all’hummus", short: "Insalata di pasta", emoji: "🥗", hue: 95,
+  { id: "insalata", t: "Insalata di pasta con salsa all’hummus", short: "Insalata di pasta", emoji: "🥗", hue: 88,
     i: ["½ della pasta cotta", "½ delle zucchine cotte", "⅓ delle carote grattugiate", "1 tazza di spinaci (≈ 30 g)", "1 pomodoro a pezzi", "¼ di tazza di prezzemolo (≈ 15 g, facoltativo)", "½ della salsa all’hummus"],
     s: ["Metti pasta e verdure in una ciotola grande.", "Aggiungi la salsa, mescola e gusta."] },
-  { id: "panino", t: "Panino con peperoni e pesto", short: "Panino pesto e peperoni", emoji: "🥪", hue: 35,
+  { id: "panino", t: "Panino con peperoni e pesto", short: "Panino pesto e peperoni", emoji: "🥪", hue: 62,
     i: ["4 fette di pane", "¼ di tazza di hummus (≈ 60 g)", "¼ di tazza di pesto (≈ 60 g)", "1 tazza di spinaci (≈ 30 g)", "2 peperoni arrostiti", "½ del tofu cotto", "1 avocado a fette", "¼ di limone a spicchi"],
     s: ["Tosta il pane (2–3 minuti) e spalma hummus e pesto.", "Aggiungi spinaci, peperoni, tofu e avocado.", "Spremi sopra un po’ di limone."] },
-  { id: "bowl", t: "Bowl di lenticchie", short: "Bowl di lenticchie", emoji: "🥙", hue: 18,
+  { id: "bowl", t: "Bowl di lenticchie", short: "Bowl di lenticchie", emoji: "🥙", hue: 140,
     i: ["Tutto il couscous", "1 tazza di stufato di lenticchie (≈ 240 ml)", "⅓ delle carote grattugiate", "½ delle zucchine cotte", "½ del tofu cotto", "½ della salsa all’hummus"],
     s: ["Dividi tutto in due ciotole.", "Scalda come preferisci, per esempio 2–3 minuti al microonde (o mangia freddo), e servi con la salsa."] },
-  { id: "ragu", t: "Ragù di lenticchie", short: "Ragù di lenticchie", emoji: "🍝", hue: 5,
+  { id: "ragu", t: "Ragù di lenticchie", short: "Ragù di lenticchie", emoji: "🍝", hue: 112,
     i: ["2 cucchiaini di olio (≈ 10 ml)", "2 tazze di stufato di lenticchie (≈ 480 ml)", "⅓ delle carote grattugiate", "1 cucchiaino di erbe italiane (≈ 1,5 g)", "½ cucchiaino di aglio in polvere (≈ 1,5 g)", "¼ di cucchiaino di sale (≈ 1,5 g)", "½ tazza di pesto (≈ 120 g)", "½ della pasta cotta", "2 tazze di spinaci (≈ 60 g)", "Peperoncino (facoltativo)"],
     s: ["In una padella a fuoco medio-alto scalda olio, stufato, carote, erbe, aglio e sale per 2 minuti. Se serve, aggiungi un po’ d’acqua.", "Unisci pesto, pasta e spinaci e scalda bene per 2–3 minuti.", "Servi con peperoncino, se vuoi."] },
-  { id: "zuppa", t: "Zuppa di lenticchie al curry", short: "Zuppa al curry", emoji: "🍜", hue: 45,
+  { id: "zuppa", t: "Zuppa di lenticchie al curry", short: "Zuppa al curry", emoji: "🍜", hue: 165,
     i: ["3 tazze di stufato di lenticchie (≈ 720 ml, usa tutto quello che resta)", "2 tazze di acqua bollente (≈ 480 ml)", "½ dado vegetale", "1 peperone arrostito", "2 cucchiaini di curry (≈ 4 g)", "2 tazze di spinaci (≈ 60 g)", "2 fette di pane tostato", "½ limone, succo"],
     s: ["In una pentola scalda stufato, acqua, dado, peperone e curry per circa 5–8 minuti, finché è ben calda.", "Frulla con il frullatore a immersione, oppure lascia a pezzi (in quel caso trita prima il peperone).", "Unisci gli spinaci e, se vuoi più liquida, altra acqua.", "Intanto tosta il pane (2–3 minuti).", "Servi con il pane e una spruzzata di limone."] },
 ];

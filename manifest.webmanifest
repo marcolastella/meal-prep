@@ -1,0 +1,22 @@
+{
+  "name": "Meal prep · 10 pasti in un’ora",
+  "short_name": "Meal prep",
+  "description": "Spesa, preparazione e pasti della settimana.",
+  "lang": "it",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#f6f1e7",
+  "theme_color": "#e2552f",
+  "icons": [
+    { "src": "icons/icon-192.png", "sizes": "192x192", "type": "image/png" },
+    { "src": "icons/icon-512.png", "sizes": "512x512", "type": "image/png" },
+    { "src": "icons/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" },
+    { "src": "icons/icon.svg", "sizes": "any", "type": "image/svg+xml" }
+  ],
+  "shortcuts": [
+    { "name": "Lista della spesa", "url": "./?p=0" },
+    { "name": "Modalità cucina", "url": "./?p=1" }
+  ]
+}

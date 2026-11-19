@@ -414,9 +414,7 @@ function houseSheet() {
       <div class="sh-sec">Sincronizzazione</div>
       <div class="set-row"><span class="note"><b>${st}</b><br>Codice: <span class="code">${esc(sync.household)}</span></span><button class="btn ghost" data-act="sync-now">↻</button></div>
       ${installEvt ? `<div class="set-row"><span>Installa come app</span><button class="btn ghost" data-act="install">Installa</button></div>` : `<p class="note" style="margin-top:12px">📱 Su iPhone: Condividi → “Aggiungi alla schermata Home” per usarla come un’app, anche offline.</p>`}
-      <div class="sh-sec">Suono del timer</div>
-      <div class="seg wide">${Object.entries(SOUNDS).map(([k, v]) => `<button data-sound="${k}" class="${timers.sound === k ? "on" : ""}">${k === "wood" ? "🪵" : "🔔"} ${v.name}</button>`).join("")}</div>
-      <p class="note">Tocca per sentirlo. Suona finché non premi “Ferma”.</p>
+      <div class="set-row"><span>⏱ Suono del timer: marimba di legno<br><span class="note">Suona finché non premi “Ferma”.</span></span><button class="btn ghost" data-sound="wood">▶ Ascolta</button></div>
       <div class="sh-sec">Gesti</div>
       <ul class="ing"><li>Scorri lo schermo a destra/sinistra per cambiare sezione</li><li>Scorri un articolo verso destra per metterlo nel carrello</li><li>Trascina giù le schede per chiuderle</li><li>In modalità cucina scorri tra i passaggi; lo schermo resta acceso</li><li>Scorri di lato un timer per eliminarlo</li></ul>
       <div class="sh-sec">Nuova settimana</div>
@@ -801,7 +799,7 @@ document.addEventListener("click", async (e) => {
   const bta = t.closest("[data-bt-add]");
   if (bta) { timers.add(bta.dataset.btAdd, 60); bump($(".bt-t", cook)); paintCookTimer(); return; }
   const snd = t.closest("[data-sound]");
-  if (snd) { timers.setSound(snd.dataset.sound); document.querySelectorAll("[data-sound]").forEach((b) => b.classList.toggle("on", b === snd)); return; }
+  if (snd) { timers.setSound(snd.dataset.sound); bump(snd); return; }
   const ic = t.closest("[data-icon]");
   if (ic) {
     sync.setIcon(ic.dataset.icon);

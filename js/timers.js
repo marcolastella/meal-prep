@@ -44,27 +44,11 @@ function woodNote(out, f, t, vel = 1) {
   n.buffer = buf; bp.type = "bandpass"; bp.frequency.value = f * 2.4; bp.Q.value = 3; ng.gain.value = 0.25 * vel;
   n.connect(bp); bp.connect(ng); ng.connect(out); n.start(t);
 }
-// Campanello da cucina: rintocchi metallici rapidi e leggeri, come i vecchi timer a molla.
-function bellStrike(out, t, vel = 1) {
-  const f = 1680;
-  [[1, 0.5, 0.9], [2.76, 0.18, 0.45], [5.4, 0.07, 0.2]].forEach(([mult, amp, dec]) => {
-    const o = ac.createOscillator(), g = ac.createGain();
-    o.type = "sine"; o.frequency.value = f * mult;
-    g.gain.setValueAtTime(0.0001, t);
-    g.gain.exponentialRampToValueAtTime(amp * vel, t + 0.002);
-    g.gain.exponentialRampToValueAtTime(0.0001, t + dec);
-    o.connect(g); g.connect(out); o.start(t); o.stop(t + dec + 0.05);
-  });
-}
 export const SOUNDS = {
   wood: { name: "Marimba di legno", every: 2200, play() {
     const out = bus(0.32), t = ac.currentTime + 0.03;
     // Do – Mi – Sol – Mi … Do: motivo morbido e riconoscibile
     [[523.25, 0], [659.25, 0.15], [783.99, 0.3], [659.25, 0.45], [1046.5, 0.68]].forEach(([f, dt], i) => woodNote(out, f, t + dt, i === 4 ? 0.9 : 0.75));
-  } },
-  bell: { name: "Campanello da cucina", every: 2400, play() {
-    const out = bus(0.16), t = ac.currentTime + 0.03;
-    for (let i = 0; i < 14; i++) bellStrike(out, t + i * 0.075, 0.55 + 0.45 * Math.sin((i / 13) * Math.PI));
   } },
 };
 const soundKey = () => (SOUNDS[prefs.get("timerSound", "wood")] ? prefs.get("timerSound", "wood") : "wood");

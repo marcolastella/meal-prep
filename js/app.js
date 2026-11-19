@@ -399,7 +399,7 @@ function houseSheet() {
       <div class="sh-sec">Il tuo profilo</div>
       <div class="me-card">
         <div class="me-top">${avatar({ ...me, id: me.id }, 64)}<div class="me-txt"><b>${esc(me.first ? shortName(me) : "Senza nome")}</b><span>così ti vedono in casa</span></div></div>
-        <button class="opt-row" data-act="edit-avatar"><span class="oi">🖼️</span><span class="ot"><b>Modifica avatar</b><span>Scegli un’icona a tema cucina</span></span><span class="chev">›</span></button>
+        <button class="opt-row" data-act="edit-avatar"><span class="oi person"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="8.2" r="3.9"/><path d="M4.6 20.2c.9-3.9 3.9-6.1 7.4-6.1s6.5 2.2 7.4 6.1"/></svg></span><span class="ot"><b>Modifica avatar</b><span>Scegli un’icona a tema cucina</span></span><span class="chev">›</span></button>
         <button class="opt-row" data-act="edit-sound"><span class="oi">${SOUNDS[timers.sound].emoji}</span><span class="ot"><b>Modifica suono timer</b><span>${esc(SOUNDS[timers.sound].name)}</span></span><span class="chev">›</span></button>
       </div>
       <div class="pform">

@@ -20,36 +20,58 @@ function audio() {
   } catch {}
 }
 
-// Campanella morbida: seno + armoniche leggere, attacco dolce, coda lunga con eco.
-function chime(notes, { gap = 0.13, vol = 0.16, decay = 1.5 } = {}) {
-  try {
-    audio();
-    const t0 = ac.currentTime + 0.03;
-    const out = ac.createGain(); out.gain.value = vol;
-    const lp = ac.createBiquadFilter(); lp.type = "lowpass"; lp.frequency.value = 5200;
-    const delay = ac.createDelay(); delay.delayTime.value = 0.19;
-    const fb = ac.createGain(); fb.gain.value = 0.22;
-    const wet = ac.createGain(); wet.gain.value = 0.35;
-    out.connect(lp); lp.connect(ac.destination);
-    lp.connect(delay); delay.connect(fb); fb.connect(delay); delay.connect(wet); wet.connect(ac.destination);
-    notes.forEach((f, i) => {
-      const t = t0 + i * gap;
-      [[1, 1], [2, 0.18], [3.01, 0.05]].forEach(([mult, amp]) => {
-        const o = ac.createOscillator(), g = ac.createGain();
-        o.type = "sine"; o.frequency.value = f * mult;
-        g.gain.setValueAtTime(0.0001, t);
-        g.gain.exponentialRampToValueAtTime(amp, t + 0.012);
-        g.gain.exponentialRampToValueAtTime(0.0001, t + decay / mult);
-        o.connect(g); g.connect(out); o.start(t); o.stop(t + decay + 0.1);
-      });
-    });
-  } catch {}
+// --- Suoni sintetizzati (nessun file audio da scaricare) ---
+function bus(vol) {
+  const out = ac.createGain(); out.gain.value = vol;
+  const comp = ac.createDynamicsCompressor(); comp.threshold.value = -18; comp.ratio.value = 4;
+  out.connect(comp); comp.connect(ac.destination);
+  return out;
 }
+// Marimba: fondamentale + 4ª armonica (tipica delle barre di legno) + colpo di battente.
+function woodNote(out, f, t, vel = 1) {
+  [[1, 0.9, 0.55], [3.93, 0.22, 0.12], [9.2, 0.05, 0.04]].forEach(([mult, amp, dec]) => {
+    const o = ac.createOscillator(), g = ac.createGain();
+    o.type = "sine"; o.frequency.value = f * mult;
+    g.gain.setValueAtTime(0.0001, t);
+    g.gain.exponentialRampToValueAtTime(amp * vel, t + 0.004);
+    g.gain.exponentialRampToValueAtTime(0.0001, t + dec);
+    o.connect(g); g.connect(out); o.start(t); o.stop(t + dec + 0.05);
+  });
+  // "toc" del battente: un soffio di rumore filtrato
+  const len = Math.floor(ac.sampleRate * 0.025), buf = ac.createBuffer(1, len, ac.sampleRate), d = buf.getChannelData(0);
+  for (let i = 0; i < len; i++) d[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / len, 3);
+  const n = ac.createBufferSource(), bp = ac.createBiquadFilter(), ng = ac.createGain();
+  n.buffer = buf; bp.type = "bandpass"; bp.frequency.value = f * 2.4; bp.Q.value = 3; ng.gain.value = 0.25 * vel;
+  n.connect(bp); bp.connect(ng); ng.connect(out); n.start(t);
+}
+// Campanello da cucina: rintocchi metallici rapidi e leggeri, come i vecchi timer a molla.
+function bellStrike(out, t, vel = 1) {
+  const f = 1680;
+  [[1, 0.5, 0.9], [2.76, 0.18, 0.45], [5.4, 0.07, 0.2]].forEach(([mult, amp, dec]) => {
+    const o = ac.createOscillator(), g = ac.createGain();
+    o.type = "sine"; o.frequency.value = f * mult;
+    g.gain.setValueAtTime(0.0001, t);
+    g.gain.exponentialRampToValueAtTime(amp * vel, t + 0.002);
+    g.gain.exponentialRampToValueAtTime(0.0001, t + dec);
+    o.connect(g); g.connect(out); o.start(t); o.stop(t + dec + 0.05);
+  });
+}
+export const SOUNDS = {
+  wood: { name: "Marimba di legno", every: 2200, play() {
+    const out = bus(0.32), t = ac.currentTime + 0.03;
+    // Do – Mi – Sol – Mi … Do: motivo morbido e riconoscibile
+    [[523.25, 0], [659.25, 0.15], [783.99, 0.3], [659.25, 0.45], [1046.5, 0.68]].forEach(([f, dt], i) => woodNote(out, f, t + dt, i === 4 ? 0.9 : 0.75));
+  } },
+  bell: { name: "Campanello da cucina", every: 2400, play() {
+    const out = bus(0.16), t = ac.currentTime + 0.03;
+    for (let i = 0; i < 14; i++) bellStrike(out, t + i * 0.075, 0.55 + 0.45 * Math.sin((i / 13) * Math.PI));
+  } },
+};
+const soundKey = () => (SOUNDS[prefs.get("timerSound", "wood")] ? prefs.get("timerSound", "wood") : "wood");
 const soft = (p) => { try { navigator.vibrate?.(p); } catch {} };
-// Fine timer: arpeggio luminoso (Mi maggiore), vibrazione dolce.
-function ring() { chime([659.25, 830.61, 987.77, 1318.51], { gap: 0.12, vol: 0.17, decay: 1.6 }); soft([45, 90, 45, 90, 70]); }
-// Avvio timer: due note brevi e leggere.
-function startSound() { chime([783.99, 1174.66], { gap: 0.08, vol: 0.1, decay: 0.6 }); soft(12); }
+function ring() { try { audio(); SOUNDS[soundKey()].play(); } catch {} soft([60, 100, 60]); }
+// Avvio timer: un solo "toc" di legno, leggero.
+function startSound() { try { audio(); const out = bus(0.22); woodNote(out, 783.99, ac.currentTime + 0.02, 0.6); woodNote(out, 1174.66, ac.currentTime + 0.11, 0.5); } catch {} soft(12); }
 
 function notify(t) {
   try {
@@ -70,9 +92,9 @@ async function wake() {
 function paint() {
   const now = Date.now(); let ch = false;
   T.forEach((t) => {
-    if (!t.done && now >= t.end) { t.done = true; t.rings = 1; t.lastRing = now; ch = true; ring(); notify(t); }
-    // Ripete la campanella al massimo 3 volte, finché non premi OK.
-    else if (t.done && (t.rings || 0) < 3 && now - (t.lastRing || 0) > 4000) { t.rings = (t.rings || 0) + 1; t.lastRing = now; ring(); }
+    if (!t.done && now >= t.end) { t.done = true; t.lastRing = now; ch = true; ring(); notify(t); }
+    // Suona finché non lo fermi tu.
+    else if (t.done && now - (t.lastRing || 0) > SOUNDS[soundKey()].every) { t.lastRing = now; ring(); }
   });
   if (ch) { save(); wake(); }
   const box = el(); if (!box) return;
@@ -83,7 +105,7 @@ function paint() {
       <div class="tr" style="--p:0"></div>
       <div class="tt"><b data-b="${t.id}">${t.done ? "Pronto!" : fmt((t.end - now) / 1000)}</b><span>${esc(t.n)}</span></div>
       ${t.done ? "" : `<button data-add="${t.id}" aria-label="Aggiungi un minuto">+1</button>`}
-      <button data-x="${t.id}">${t.done ? "OK" : "Stop"}</button></div>`).join("");
+      <button data-x="${t.id}">${t.done ? "Ferma" : "Stop"}</button></div>`).join("");
   }
   T.forEach((t) => {
     const row = box.querySelector(`[data-tid="${t.id}"]`); if (!row) return;
@@ -96,6 +118,11 @@ function paint() {
 export const timers = {
   /** C'è già un timer (attivo o appena suonato) con questa etichetta? */
   has(label) { return T.some((t) => t.n === label); },
+  list: () => T,
+  add(id, sec) { const t = T.find((t) => t.id == id); if (t && !t.done) { t.end += sec * 1000; t.dur += sec; save(); paint(); } },
+  stop(id) { T = T.filter((t) => t.id != id); save(); wake(); paint(); },
+  get sound() { return soundKey(); },
+  setSound(k) { if (SOUNDS[k]) { prefs.set("timerSound", k); audio(); SOUNDS[k].play(); } },
   start(label, seconds) {
     audio();
     if ("Notification" in window && Notification.permission === "default") Notification.requestPermission().catch(() => {});

@@ -1,7 +1,7 @@
 import { PLAN, SPESA, PREP, PASTI } from "./data.js";
 import { store, prefs } from "./store.js";
 import { sync } from "./sync.js";
-import { timers, withTimers, stepTimer } from "./timers.js";
+import { timers, withTimers, stepTimer, SOUNDS, fmt } from "./timers.js";
 import { motionBlur, dragBlur, clearBlur, burst, confetti, ripple, stagger, bump } from "./fx.js";
 import qrcode from "./vendor/qrcode.mjs";
 import { scaleIngredient } from "./scale.js";
@@ -414,6 +414,9 @@ function houseSheet() {
       <div class="sh-sec">Sincronizzazione</div>
       <div class="set-row"><span class="note"><b>${st}</b><br>Codice: <span class="code">${esc(sync.household)}</span></span><button class="btn ghost" data-act="sync-now">↻</button></div>
       ${installEvt ? `<div class="set-row"><span>Installa come app</span><button class="btn ghost" data-act="install">Installa</button></div>` : `<p class="note" style="margin-top:12px">📱 Su iPhone: Condividi → “Aggiungi alla schermata Home” per usarla come un’app, anche offline.</p>`}
+      <div class="sh-sec">Suono del timer</div>
+      <div class="seg wide">${Object.entries(SOUNDS).map(([k, v]) => `<button data-sound="${k}" class="${timers.sound === k ? "on" : ""}">${k === "wood" ? "🪵" : "🔔"} ${v.name}</button>`).join("")}</div>
+      <p class="note">Tocca per sentirlo. Suona finché non premi “Ferma”.</p>
       <div class="sh-sec">Gesti</div>
       <ul class="ing"><li>Scorri lo schermo a destra/sinistra per cambiare sezione</li><li>Scorri un articolo verso destra per metterlo nel carrello</li><li>Trascina giù le schede per chiuderle</li><li>In modalità cucina scorri tra i passaggi; lo schermo resta acceso</li><li>Scorri di lato un timer per eliminarlo</li></ul>
       <div class="sh-sec">Nuova settimana</div>
@@ -598,11 +601,42 @@ function renderCook() {
       <div class="ck-rec"><span class="e">${s.r.emoji}</span><span>${esc(s.r.t)}</span></div>
       <div class="ck-n">Passaggio ${s.i + 1} di ${s.n}</div>
       <p class="ck-txt">${esc(s.text)}</p>
-      <details class="ck-ing"${s.i === 0 ? " open" : ""}><summary>Ingredienti</summary><ul class="ing" style="margin-top:8px">${s.r.i.map((x) => `<li>${esc(x)}</li>`).join("")}</ul></details>
+      <div class="ck-ing"><div class="ck-ing-h">🧺 Ingredienti</div><ul class="ing">${s.r.i.map((x) => `<li>${esc(x)}</li>`).join("")}</ul></div>
       </div>`).join("")}${last}</div></div>
+    <div class="ck-timer" id="ckTimer" hidden></div>
     <div class="ck-nav"><button class="btn ghost back" data-ck="-1" aria-label="Passaggio precedente">←</button><button class="btn pri" data-ck="1" id="ckNext">Avanti →</button></div>`;
   ckGo(ck.idx, false);
 }
+// Timer grande in modalità cucina: quello del passaggio corrente (o il più vicino alla fine).
+const RING_LEN = 100;
+function paintCookTimer() {
+  const box = ck && $("#ckTimer", cook); if (!box) return;
+  const list = timers.list();
+  if (!list.length) { if (!box.hidden) { box.hidden = true; box.innerHTML = ""; box.dataset.sig = ""; } return; }
+  const s = ck.steps[ck.idx], lbl = s ? `${s.r.t} · passo ${s.i + 1}` : "";
+  const prim = list.find((t) => t.done) || list.find((t) => t.n === lbl) || // quello che suona ha la precedenza
+    [...list].sort((a, b) => a.end - b.end)[0];
+  const others = list.filter((t) => t !== prim);
+  const sig = prim.id + (prim.done ? "d" : "r") + "|" + others.map((t) => t.id + (t.done ? "d" : "r")).join();
+  const now = Date.now();
+  if (box.dataset.sig !== sig) {
+    box.dataset.sig = sig; box.hidden = false;
+    box.innerHTML = `<div class="bt${prim.done ? " done" : ""}">
+      <div class="bt-ring"><svg viewBox="0 0 120 120" aria-hidden="true"><circle class="trk" cx="60" cy="60" r="52"/><circle class="prg" cx="60" cy="60" r="52" pathLength="${RING_LEN}"/></svg>
+        <div class="bt-c"><b class="bt-t">${prim.done ? "0:00" : fmt((prim.end - now) / 1000)}</b></div></div>
+      <div class="bt-side"><span class="bt-l">${prim.done ? "⏰ Pronto!" : "⏱ " + esc(prim.n)}</span>
+        ${prim.done ? `<button class="btn bt-stop" data-bt-stop="${prim.id}">✋ Ferma</button>`
+          : `<div class="prow"><button class="btn ghost" data-bt-add="${prim.id}">+1 min</button><button class="btn ghost" data-bt-stop="${prim.id}">Stop</button></div>`}
+      </div></div>
+      ${others.length ? `<div class="bt-others">${others.map((t) => `<button class="bt-chip${t.done ? " done" : ""}" data-bt-stop="${t.done ? t.id : ""}" data-tid2="${t.id}">${esc(t.n.split(" · ")[0])} <b>${t.done ? "Pronto! ✋" : fmt((t.end - now) / 1000)}</b></button>`).join("")}</div>` : ""}`;
+  }
+  const left = Math.max(0, (prim.end - now) / 1000);
+  const tEl = box.querySelector(".bt-t"); if (tEl && !prim.done) tEl.textContent = fmt(left);
+  const prg = box.querySelector(".prg"); if (prg) prg.style.strokeDashoffset = prim.done ? RING_LEN : RING_LEN * (1 - left / prim.dur);
+  others.forEach((t) => { const b = box.querySelector(`[data-tid2="${t.id}"] b`); if (b && !t.done) b.textContent = fmt((t.end - now) / 1000); });
+}
+setInterval(paintCookTimer, 250);
+
 // Se il passaggio ha un tempo, il pulsante principale prima imposta il timer, poi fa avanzare.
 function setNextButton() {
   const next = $("#ckNext", cook); if (!next || !ck) return;
@@ -632,7 +666,7 @@ function ckGo(i, anim = true) {
   cook.querySelectorAll(".ck-bar i").forEach((b, j) => b.classList.toggle("on", j <= i));
   const next = $("#ckNext", cook), nav = $(".ck-nav", cook);
   nav.style.display = i === total - 1 ? "none" : "";
-  setNextButton();
+  setNextButton(); paintCookTimer();
   if (anim && i !== prev) {
     buzz(6); motionBlur(stripEl, 4);
     const card = stripEl.children[i];
@@ -738,7 +772,7 @@ document.addEventListener("click", async (e) => {
       const s = ck.steps[ck.idx], tm = stepTimer(s.text);
       timers.start(`${s.r.t} · passo ${s.i + 1}`, tm.sec);
       ck.started.add(ck.idx);
-      setNextButton(); bump(ckb);
+      setNextButton(); bump(ckb); paintCookTimer();
       toast(`⏱ Timer di ${tm.label} avviato`);
       return;
     }
@@ -762,6 +796,12 @@ document.addEventListener("click", async (e) => {
   if (t.closest(".stepper")) return;
   const meal = t.closest("[data-meal]");
   if (meal) return mealSheet(meal.dataset.meal);
+  const bts = t.closest("[data-bt-stop]");
+  if (bts && bts.dataset.btStop) { timers.stop(bts.dataset.btStop); buzz(10); paintCookTimer(); setNextButton(); return; }
+  const bta = t.closest("[data-bt-add]");
+  if (bta) { timers.add(bta.dataset.btAdd, 60); bump($(".bt-t", cook)); paintCookTimer(); return; }
+  const snd = t.closest("[data-sound]");
+  if (snd) { timers.setSound(snd.dataset.sound); document.querySelectorAll("[data-sound]").forEach((b) => b.classList.toggle("on", b === snd)); return; }
   const ic = t.closest("[data-icon]");
   if (ic) {
     sync.setIcon(ic.dataset.icon);

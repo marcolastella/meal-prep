@@ -17,7 +17,7 @@ const rand = (n) => { const a = "abcdefghjkmnpqrstuvwxyz23456789"; return [...cr
 const newCode = () => rand(20).replace(/(.{5})(?!$)/g, "$1-");
 
 // Il mio profilo (solo su questo dispositivo, poi pubblicato come membro della casa).
-const me = prefs.get("me", null) || { id: rand(10), first: "", last: "" };
+const me = prefs.get("me", null) || { id: rand(10), first: "", last: "", icon: "" };
 prefs.set("me", me);
 
 export function normalizeCode(s) {
@@ -93,8 +93,8 @@ async function connectRealtime() {
 function publishMe(force) {
   if (!me.first) return;
   const cur = store.get("member:" + me.id);
-  const stale = !cur || cur.first !== me.first || cur.last !== me.last || Date.now() - (cur.seen || 0) > 6 * 36e5;
-  if (force || stale) store.set("member:" + me.id, { first: me.first, last: me.last, seen: Date.now(), since: cur?.since || Date.now() });
+  const stale = !cur || cur.first !== me.first || cur.last !== me.last || (cur.icon || "") !== (me.icon || "") || Date.now() - (cur.seen || 0) > 6 * 36e5;
+  if (force || stale) store.set("member:" + me.id, { first: me.first, last: me.last, icon: me.icon || "", seen: Date.now(), since: cur?.since || Date.now() });
 }
 
 export const sync = {
@@ -117,9 +117,10 @@ export const sync = {
     me.first = first.trim().slice(0, 30); me.last = last.trim().slice(0, 30);
     prefs.set("me", me); publishMe(true);
   },
+  setIcon(icon) { me.icon = icon || ""; prefs.set("me", me); publishMe(true); },
   members() {
     const list = store.entries("member:").map(([id, v]) => ({ id, ...v }));
-    if (me.first && !list.some((m) => m.id === me.id)) list.push({ id: me.id, first: me.first, last: me.last, seen: Date.now() });
+    if (me.first && !list.some((m) => m.id === me.id)) list.push({ id: me.id, first: me.first, last: me.last, icon: me.icon, seen: Date.now() });
     return list.sort((a, b) => (a.id === me.id ? -1 : b.id === me.id ? 1 : (a.since || 0) - (b.since || 0)));
   },
   member(id) { return id === me.id ? { id, ...me } : store.get("member:" + id) ? { id, ...store.get("member:" + id) } : null; },
@@ -129,7 +130,7 @@ export const sync = {
     const m = store.get("member:" + id);
     if (!m || id === me.id) return;
     const old = me.id;
-    me.id = id; me.first = m.first || ""; me.last = m.last || "";
+    me.id = id; me.first = m.first || ""; me.last = m.last || ""; me.icon = m.icon || "";
     prefs.set("me", me);
     if (store.get("member:" + old)) store.set("member:" + old, null);
     publishMe(true);

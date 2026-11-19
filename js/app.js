@@ -1,7 +1,7 @@
 import { PLAN, SPESA, PREP, PASTI } from "./data.js";
 import { store, prefs } from "./store.js";
 import { sync } from "./sync.js";
-import { timers, withTimers } from "./timers.js";
+import { timers, withTimers, stepTimer } from "./timers.js";
 import { motionBlur, dragBlur, clearBlur, burst, confetti, ripple, stagger, bump } from "./fx.js";
 import qrcode from "./vendor/qrcode.mjs";
 import { scaleIngredient } from "./scale.js";
@@ -18,9 +18,17 @@ const HUES = [142, 96, 168, 30, 200, 330, 52, 265];
 const hueOf = (id) => HUES[[...String(id)].reduce((a, c) => a + c.charCodeAt(0), 0) % HUES.length];
 const initials = (m) => ((m?.first?.[0] || "") + (m?.last?.[0] || "")).toUpperCase() || "?";
 const fullName = (m) => [m?.first, m?.last].filter(Boolean).join(" ") || "Senza nome";
+// Icone per l'avatar, a tema cucina vegana.
+const ICONS = ["🥑", "🥕", "🍅", "🥦", "🌶️", "🍆", "🥬", "🧄", "🧅", "🍋", "🍓", "🫐", "🍉", "🥥", "🍄", "🌽", "🫑", "🥒", "🍠", "🫛", "🍌", "🍍", "🍒", "🥐", "🥖", "🥨", "🍜", "🍝", "🥗", "🥟", "🍲", "🥘", "🫕", "🥣", "🧁", "🍪", "🍩", "☕", "🍵", "🫖", "🥄", "🍴", "🔪", "🧑‍🍳", "🌱", "🌿"];
 function avatar(m, size = 30, cls = "") {
-  const on = sync.online.has(m.id);
-  return `<span class="av ${cls}${on ? " on" : ""}" style="--h:${hueOf(m.id)};--s:${size}px" title="${esc(fullName(m))}">${esc(initials(m))}</span>`;
+  const on = sync.online.has(m.id), ic = m.icon && ICONS.includes(m.icon) ? m.icon : "";
+  return `<span class="av ${cls}${ic ? " emo" : ""}${on ? " on" : ""}" style="--h:${hueOf(m.id)};--s:${size}px" title="${esc(fullName(m))}">${ic || esc(initials(m))}</span>`;
+}
+function iconPicker() {
+  const cur = sync.me.icon || "";
+  return `<div class="icon-pick" role="radiogroup" aria-label="Icona del profilo">
+    <button class="ip${!cur ? " on" : ""}" data-icon="" role="radio" aria-checked="${!cur}" title="Iniziali"><span>${esc(initials(sync.me) === "?" ? "Aa" : initials(sync.me))}</span></button>
+    ${ICONS.map((ic) => `<button class="ip${cur === ic ? " on" : ""}" data-icon="${ic}" role="radio" aria-checked="${cur === ic}">${ic}</button>`).join("")}</div>`;
 }
 function who(v) { return typeof v === "string" ? sync.member(v) : null; }
 function ago(t) {
@@ -398,6 +406,8 @@ function houseSheet() {
         <label><span>Nome</span><input id="pFirst" value="${esc(me.first)}" placeholder="Marco" autocomplete="given-name" autocapitalize="words" maxlength="30" enterkeyhint="next"></label>
         <label><span>Cognome</span><input id="pLast" value="${esc(me.last)}" placeholder="Rossi" autocomplete="family-name" autocapitalize="words" maxlength="30" enterkeyhint="done"></label>
       </div>
+      <div class="sh-sec">La tua icona</div>
+      ${iconPicker()}
       <div class="sh-sec">Entra in un’altra casa</div>
       <div class="field"><input id="joinCode" placeholder="Incolla codice o link d’invito" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false"><button class="btn ghost" data-act="join">Entra</button></div>
       <p class="note">Entrando in un’altra casa vedrai la sua lista al posto della tua.</p>
@@ -457,7 +467,9 @@ function profileSheet(welcome) {
         <label><span>Nome</span><input id="pFirst" value="${esc(me.first)}" placeholder="Nome" autocomplete="given-name" autocapitalize="words" maxlength="30" enterkeyhint="next"></label>
         <label><span>Cognome</span><input id="pLast" value="${esc(me.last)}" placeholder="Cognome" autocomplete="family-name" autocapitalize="words" maxlength="30" enterkeyhint="done"></label>
       </div>
-      <button class="btn pri block" data-act="profile-ok">Continua</button>`}
+      <div class="sh-sec" style="text-align:left">Scegli un’icona</div>
+      ${iconPicker()}
+      <button class="btn pri block" data-act="profile-ok" style="margin-top:14px">Continua</button>`}
       <button class="btn ghost block" data-close style="margin-top:8px">Più tardi</button></div>`;
   }, welcome ? "welcome" : "profile");
 }
@@ -563,17 +575,17 @@ function openCook(kind, from) {
     const startRec = from != null && from !== "" ? +from : PREP.findIndex((p) => !store.get("p:" + p.id));
     idx = Math.max(0, steps.findIndex((s) => s.ri === Math.max(0, startRec)));
   }
-  ck = { kind, steps, idx };
+  ck = { kind, steps, idx, started: new Set() };
   if (sheet.classList.contains("open")) { sheet.classList.remove("open"); sheet.setAttribute("aria-hidden", "true"); sheetRender = null; sheetKind = null; history.replaceState({ overlay: "cook" }, ""); }
   else history.pushState({ overlay: "cook" }, "");
   renderCook();
-  cook.classList.add("open"); cook.setAttribute("aria-hidden", "false");
+  cook.classList.add("open"); cook.setAttribute("aria-hidden", "false"); document.body.classList.add("cooking");
   try { navigator.wakeLock?.request("screen").then((l) => (wl = l)).catch(() => {}); } catch {}
 }
 function closeCook(fromPop) {
   if (!cook.classList.contains("open")) return;
   if (!fromPop && history.state?.overlay === "cook") return history.back();
-  cook.classList.remove("open"); cook.setAttribute("aria-hidden", "true"); cook.style.transform = "";
+  cook.classList.remove("open"); cook.setAttribute("aria-hidden", "true"); cook.style.transform = ""; document.body.classList.remove("cooking");
   try { wl?.release(); } catch {} wl = null; ck = null;
 }
 function renderCook() {
@@ -585,11 +597,24 @@ function renderCook() {
     <div class="ck-stage"><div class="ck-strip">${steps.map((s) => `<div class="ck-card" aria-hidden="true">
       <div class="ck-rec"><span class="e">${s.r.emoji}</span><span>${esc(s.r.t)}</span></div>
       <div class="ck-n">Passaggio ${s.i + 1} di ${s.n}</div>
-      <p class="ck-txt">${withTimers(s.text, s.r.t)}</p>
+      <p class="ck-txt">${esc(s.text)}</p>
       <details class="ck-ing"${s.i === 0 ? " open" : ""}><summary>Ingredienti</summary><ul class="ing" style="margin-top:8px">${s.r.i.map((x) => `<li>${esc(x)}</li>`).join("")}</ul></details>
       </div>`).join("")}${last}</div></div>
     <div class="ck-nav"><button class="btn ghost back" data-ck="-1" aria-label="Passaggio precedente">←</button><button class="btn pri" data-ck="1" id="ckNext">Avanti →</button></div>`;
   ckGo(ck.idx, false);
+}
+// Se il passaggio ha un tempo, il pulsante principale prima imposta il timer, poi fa avanzare.
+function setNextButton() {
+  const next = $("#ckNext", cook); if (!next || !ck) return;
+  const i = ck.idx, s = ck.steps[i], total = ck.steps.length + 1;
+  const tm = s && stepTimer(s.text);
+  if (tm && !ck.started.has(i) && !timers.has(`${s.r.t} · passo ${s.i + 1}`)) {
+    next.dataset.mode = "timer"; next.classList.add("timer");
+    next.innerHTML = `<span class="tico">⏱</span> Imposta timer ${tm.label}`;
+  } else {
+    next.dataset.mode = ""; next.classList.remove("timer");
+    next.textContent = i === total - 2 ? "Fine ✓" : (s?.i === s?.n - 1 && ck.kind === "prep" ? "Fatto, avanti →" : "Avanti →");
+  }
 }
 function ckGo(i, anim = true) {
   const total = ck.steps.length + 1;
@@ -607,7 +632,7 @@ function ckGo(i, anim = true) {
   cook.querySelectorAll(".ck-bar i").forEach((b, j) => b.classList.toggle("on", j <= i));
   const next = $("#ckNext", cook), nav = $(".ck-nav", cook);
   nav.style.display = i === total - 1 ? "none" : "";
-  next.textContent = i === total - 2 ? "Fine ✓" : (ck.steps[i]?.i === ck.steps[i]?.n - 1 && ck.kind === "prep" ? "Fatto, avanti →" : "Avanti →");
+  setNextButton();
   if (anim && i !== prev) {
     buzz(6); motionBlur(stripEl, 4);
     const card = stripEl.children[i];
@@ -708,7 +733,17 @@ document.addEventListener("click", async (e) => {
   const cookBtn = t.closest("[data-cook]");
   if (cookBtn) return openCook(cookBtn.dataset.cook, cookBtn.dataset.from);
   const ckb = t.closest("[data-ck]");
-  if (ckb && ck) return ckGo(ck.idx + +ckb.dataset.ck);
+  if (ckb && ck) {
+    if (ckb.dataset.mode === "timer") {
+      const s = ck.steps[ck.idx], tm = stepTimer(s.text);
+      timers.start(`${s.r.t} · passo ${s.i + 1}`, tm.sec);
+      ck.started.add(ck.idx);
+      setNextButton(); bump(ckb);
+      toast(`⏱ Timer di ${tm.label} avviato`);
+      return;
+    }
+    return ckGo(ck.idx + +ckb.dataset.ck);
+  }
   const eat = t.closest("[data-eat]");
   if (eat) { store.set(`m:${eat.dataset.eat}`, sync.me.id); buzz(20); closeCook(); checkMilestones("m:", true); return; }
   const stp = t.closest("[data-step]");
@@ -727,6 +762,13 @@ document.addEventListener("click", async (e) => {
   if (t.closest(".stepper")) return;
   const meal = t.closest("[data-meal]");
   if (meal) return mealSheet(meal.dataset.meal);
+  const ic = t.closest("[data-icon]");
+  if (ic) {
+    sync.setIcon(ic.dataset.icon);
+    document.querySelectorAll(".icon-pick .ip").forEach((b) => { const on = b === ic; b.classList.toggle("on", on); b.setAttribute("aria-checked", on); });
+    bump(ic); buzz(8); renderHeader();
+    return;
+  }
   const iam = t.closest("[data-iam]");
   if (iam) {
     const m = sync.member(iam.dataset.iam);

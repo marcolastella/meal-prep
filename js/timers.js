@@ -11,22 +11,45 @@ const save = () => prefs.set("timers", T);
 
 export const fmt = (s) => { s = Math.max(0, Math.ceil(s)); const m = Math.floor(s / 60); return m + ":" + String(s % 60).padStart(2, "0"); };
 
-function audio() { try { ac = ac || new (window.AudioContext || window.webkitAudioContext)(); if (ac.state === "suspended") ac.resume(); } catch {} }
+function audio() {
+  try {
+    // Su iPhone suona anche con l'interruttore silenzioso, come un breve avviso.
+    if (navigator.audioSession) navigator.audioSession.type = "transient";
+    ac = ac || new (window.AudioContext || window.webkitAudioContext)();
+    if (ac.state === "suspended") ac.resume();
+  } catch {}
+}
 
-function beep() {
+// Campanella morbida: seno + armoniche leggere, attacco dolce, coda lunga con eco.
+function chime(notes, { gap = 0.13, vol = 0.16, decay = 1.5 } = {}) {
   try {
     audio();
-    [0, 0.25, 0.5, 1.1, 1.35, 1.6].forEach((d) => {
-      const o = ac.createOscillator(), g = ac.createGain();
-      o.type = "triangle"; o.frequency.value = d < 1 ? 880 : 1046;
-      o.connect(g); g.connect(ac.destination);
-      const t = ac.currentTime + d;
-      g.gain.setValueAtTime(0.3, t); g.gain.exponentialRampToValueAtTime(0.001, t + 0.22);
-      o.start(t); o.stop(t + 0.22);
+    const t0 = ac.currentTime + 0.03;
+    const out = ac.createGain(); out.gain.value = vol;
+    const lp = ac.createBiquadFilter(); lp.type = "lowpass"; lp.frequency.value = 5200;
+    const delay = ac.createDelay(); delay.delayTime.value = 0.19;
+    const fb = ac.createGain(); fb.gain.value = 0.22;
+    const wet = ac.createGain(); wet.gain.value = 0.35;
+    out.connect(lp); lp.connect(ac.destination);
+    lp.connect(delay); delay.connect(fb); fb.connect(delay); delay.connect(wet); wet.connect(ac.destination);
+    notes.forEach((f, i) => {
+      const t = t0 + i * gap;
+      [[1, 1], [2, 0.18], [3.01, 0.05]].forEach(([mult, amp]) => {
+        const o = ac.createOscillator(), g = ac.createGain();
+        o.type = "sine"; o.frequency.value = f * mult;
+        g.gain.setValueAtTime(0.0001, t);
+        g.gain.exponentialRampToValueAtTime(amp, t + 0.012);
+        g.gain.exponentialRampToValueAtTime(0.0001, t + decay / mult);
+        o.connect(g); g.connect(out); o.start(t); o.stop(t + decay + 0.1);
+      });
     });
   } catch {}
-  try { navigator.vibrate?.([300, 120, 300, 120, 500]); } catch {}
 }
+const soft = (p) => { try { navigator.vibrate?.(p); } catch {} };
+// Fine timer: arpeggio luminoso (Mi maggiore), vibrazione dolce.
+function ring() { chime([659.25, 830.61, 987.77, 1318.51], { gap: 0.12, vol: 0.17, decay: 1.6 }); soft([45, 90, 45, 90, 70]); }
+// Avvio timer: due note brevi e leggere.
+function startSound() { chime([783.99, 1174.66], { gap: 0.08, vol: 0.1, decay: 0.6 }); soft(12); }
 
 function notify(t) {
   try {
@@ -46,7 +69,11 @@ async function wake() {
 
 function paint() {
   const now = Date.now(); let ch = false;
-  T.forEach((t) => { if (!t.done && now >= t.end) { t.done = true; ch = true; beep(); notify(t); } });
+  T.forEach((t) => {
+    if (!t.done && now >= t.end) { t.done = true; t.rings = 1; t.lastRing = now; ch = true; ring(); notify(t); }
+    // Ripete la campanella al massimo 3 volte, finché non premi OK.
+    else if (t.done && (t.rings || 0) < 3 && now - (t.lastRing || 0) > 4000) { t.rings = (t.rings || 0) + 1; t.lastRing = now; ring(); }
+  });
   if (ch) { save(); wake(); }
   const box = el(); if (!box) return;
   const s = T.map((t) => t.id + (t.done ? "d" : "r")).join();
@@ -67,13 +94,16 @@ function paint() {
 }
 
 export const timers = {
+  /** C'è già un timer (attivo o appena suonato) con questa etichetta? */
+  has(label) { return T.some((t) => t.n === label); },
   start(label, seconds) {
     audio();
     if ("Notification" in window && Notification.permission === "default") Notification.requestPermission().catch(() => {});
     const id = Date.now();
     T.push({ id, n: label, end: id + seconds * 1000, dur: seconds, done: false });
     save(); wake(); paint();
-    navigator.vibrate?.(15);
+    startSound();
+    return id;
   },
   init() {
     setInterval(paint, 250);
@@ -98,6 +128,14 @@ export const timers = {
     paint(); wake();
   },
 };
+
+/** Durata del primo tempo citato in un passaggio, per il pulsante "Imposta timer". */
+export function stepTimer(text) {
+  const m = String(text).match(/(\d+)(?:–(\d+))?\s+(?:altri\s+)?minut[oi]/);
+  if (!m) return null;
+  const max = +(m[2] || m[1]);
+  return { sec: max * 60, label: m[2] ? `${m[1]}–${m[2]} min` : `${m[1]} min` };
+}
 
 /** Trasforma "cuoci 15–18 minuti" in testo con un pulsante timer. */
 export function withTimers(text, label) {

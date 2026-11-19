@@ -37,11 +37,11 @@ export const store = {
   get: (k) => state[k]?.v,
   all: () => state,
   subscribe: (f) => (subs.add(f), () => subs.delete(f)),
-  setSkew(ms) { clockSkew = ms; },
+  setSkew(ms) { clockSkew = Math.round(ms) || 0; },
 
   /** Imposta più chiavi insieme; restituisce i valori precedenti (per "Annulla"). */
   setMany(obj, { silent = false } = {}) {
-    const t = Date.now() + clockSkew;
+    const t = Math.round(Date.now() + clockSkew);
     const prev = {};
     for (const [k, v] of Object.entries(obj)) {
       prev[k] = state[k]?.v ?? null;

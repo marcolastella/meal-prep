@@ -12,7 +12,7 @@ const CHECK = `<svg viewBox="0 0 24 24"><path d="M5 12.5l4.5 4.5L19 7.5" stroke-
 /* ---------- Tema ---------- */
 const mq = matchMedia("(prefers-color-scheme: dark)");
 function applyTheme() {
-  const p = prefs.get("theme", "auto");
+  const p = prefs.get("theme", "light");
   const dark = p === "dark" || (p === "auto" && mq.matches);
   document.documentElement.dataset.theme = dark ? "dark" : "light";
   document.querySelectorAll('meta[name="theme-color"]').forEach((m) => (m.content = dark ? "#0b1510" : "#f3faf1"));
@@ -305,7 +305,7 @@ addEventListener("beforeinstallprompt", (e) => { e.preventDefault(); installEvt 
 
 function settingsSheet() {
   openSheet(() => {
-    const th = prefs.get("theme", "auto");
+    const th = prefs.get("theme", "light");
     const st = { local: "Solo su questo dispositivo", syncing: "Sincronizzo…", synced: "Sincronizzato", offline: "Offline: sincronizzo appena torni online", error: "Errore di connessione, riprovo" }[sync.status];
     sheetBody.innerHTML = `<h2 id="sheet-title" style="font-size:25px;margin-bottom:6px">Impostazioni</h2>
       <div class="sh-sec">Salvataggio</div>
@@ -536,4 +536,8 @@ requestAnimationFrame(() => document.body.classList.add("ready"));
 timers.init();
 sync.start();
 setInterval(headerLine, 60_000);
-if ("serviceWorker" in navigator && location.protocol === "https:") navigator.serviceWorker.register("sw.js").catch(() => {});
+if ("serviceWorker" in navigator && location.protocol === "https:") {
+  navigator.serviceWorker.register("sw.js").then((r) => r.update()).catch(() => {});
+  let reloaded = !navigator.serviceWorker.controller; // al primo avvio non serve ricaricare
+  navigator.serviceWorker.addEventListener("controllerchange", () => { if (!reloaded) { reloaded = true; location.reload(); } });
+}

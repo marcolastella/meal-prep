@@ -352,3 +352,16 @@ button.mrow:active{background:var(--acc-soft)}
 #ckNext .tico{display:inline-block;animation:tick 1.6s ease-in-out infinite}
 @keyframes tick{0%,70%,100%{transform:rotate(0)}80%{transform:rotate(-14deg)}90%{transform:rotate(12deg)}}
 body.cooking #timers{bottom:calc(92px + var(--sb))}
+
+/* ===== Mangiato / Divorato ===== */
+.plate.eat{min-width:0;gap:7px;padding:7px 14px 7px 9px;background:rgba(255,255,255,.75);box-shadow:inset 0 0 0 1.5px rgba(15,42,25,.08)}
+.sheet-plates .plate.eat:not(.on){background:var(--surf);box-shadow:var(--shadow)}
+.plate.eat .yum{font-size:21px;line-height:1;filter:grayscale(1);opacity:.55;transition:filter .3s,opacity .3s;display:inline-block}
+.plate.eat.on{background:var(--acc);color:#fff;box-shadow:0 6px 16px rgba(22,176,79,.3);padding-right:6px}
+.plate.eat.on .yum{filter:none;opacity:1}
+.plate.eat.on.just{animation:none}
+.plate.eat.just .yum{animation:yum .75s cubic-bezier(.34,1.56,.64,1)}
+@keyframes yum{0%{transform:scale(.5) rotate(0)}35%{transform:scale(1.45) rotate(-14deg)}60%{transform:scale(1.15) rotate(10deg)}100%{transform:scale(1) rotate(0)}}
+.plate.eat .av.eat-av{border:2px solid rgba(255,255,255,.85);font-size:9px}
+.plate.eat .av.eat-av.emo{font-size:12px}
+.plate.eat .av.eat-av::after{display:none}

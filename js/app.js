@@ -152,7 +152,7 @@ function stepperHTML(m) {
 }
 function eatHTML(m) {
   const v = store.get(`m:${m.id}`), on = !!v, w = who(v);
-  return `<button class="plate eat${on ? " on" : ""}${justTog === "m:" + m.id ? " just" : ""}" data-tog="m:${m.id}" aria-pressed="${on}"><i>${on && w ? esc(initials(w)) : ""}</i>${on ? "Mangiato" : "Mangiato?"}</button>`;
+  return `<button class="plate eat${on ? " on" : ""}${justTog === "m:" + m.id ? " just" : ""}" data-tog="m:${m.id}" aria-pressed="${on}" aria-label="${on ? "Divorato, tocca per annullare" : "Segna come mangiato"}"><span class="yum">😋</span><span class="et">${on ? "Divorato!" : "Mangiato"}</span>${on && w ? avatar(w, 22, "eat-av") : ""}</button>`;
 }
 function renderPasti() {
   const keys = mealKeys(), n = count(keys);
@@ -722,7 +722,7 @@ document.addEventListener("click", async (e) => {
   if (tog) {
     e.stopPropagation();
     const k = tog.dataset.tog, v = !store.get(k);
-    if (v) { burst(tog.querySelector("i") || tog, k.startsWith("p:") ? 16 : 10); justTog = k; }
+    if (v) { burst(tog.querySelector(".yum,i") || tog, k.startsWith("p:") ? 16 : 10); justTog = k; }
     store.set(k, v ? sync.me.id : null); buzz(v ? 12 : 6);
     if (k.startsWith("p:")) checkPrepDate();
     checkMilestones(k, v);

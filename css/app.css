@@ -332,3 +332,11 @@ ol.steps li{margin:6px 0}
 .stepper .sv{min-width:84px;text-align:center;font-size:13px;font-weight:700;color:inherit;display:flex;align-items:baseline;justify-content:center;gap:4px;font-variant-numeric:tabular-nums}
 .stepper .sv b{font-size:18px;font-weight:800;display:inline-block}
 .plate.eat{padding:9px 13px 9px 10px}
+
+/* ===== Sono io ===== */
+.iam-list{text-align:left;margin:12px 0 4px}
+button.mrow{width:100%;border:0;background:transparent;font:inherit;color:inherit;cursor:pointer;text-align:left}
+button.mrow:active{background:var(--acc-soft)}
+.iam-chip{font-size:12.5px;font-weight:800;color:#fff;background:var(--acc);padding:7px 11px;border-radius:999px;flex:none}
+.or{display:flex;align-items:center;gap:10px;color:var(--mute);font-size:13px;font-weight:600;margin:14px 0 6px}
+.or::before,.or::after{content:"";flex:1;height:1px;background:var(--line)}

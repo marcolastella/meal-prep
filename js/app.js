@@ -310,6 +310,7 @@ document.addEventListener("focusin", (e) => { if (e.target.matches?.("#sheetBody
 document.addEventListener("input", (e) => { if (e.target.matches?.("#sheetBody input")) lastTyping = Date.now(); }, true);
 function canRerenderSheet() {
   if (sheetKind === "profile") return false;
+  if (sheetKind === "welcome" && document.querySelector("#sheetBody #pFirst")?.value) return false;
   if (document.activeElement?.matches?.("#sheetBody input")) return false;
   return Date.now() - lastTyping > 1500;
 }
@@ -435,20 +436,30 @@ function qrSheet() {
   }, "qr");
 }
 
+// Benvenuto: scegli chi sei tra i membri della casa ("Sono io") oppure scrivi il tuo nome.
 function profileSheet(welcome) {
+  let typedOnce = false;
   openSheet(() => {
-    const hn = sync.houseName();
+    const hn = sync.houseName(), me = sync.me;
+    const others = sync.members().filter((m) => m.id !== me.id);
+    const pick = welcome && others.length;
+    // Mentre si scrive il nome non ridisegnare (canRerenderSheet lo blocca già); qui basta mostrare i membri appena arrivano.
     sheetBody.innerHTML = `<div class="welcome">
       <div class="wave">👋</div>
       <h2 id="sheet-title">${welcome && hn ? `Benvenuto in ${esc(hn)}!` : welcome ? "Benvenuto!" : "Il tuo profilo"}</h2>
-      <p class="note">Come ti chiami? Così chi cucina con te vede chi ha preso cosa.</p>
+      ${pick ? `<p class="note">Sei già in questa casa? Tocca il tuo nome.</p>
+        <div class="mlist iam-list">${others.map((m) => `<button class="mrow iam" data-iam="${esc(m.id)}">${avatar(m, 42)}<div class="mtxt"><b>${esc(fullName(m))}</b><span>${sync.online.has(m.id) ? '<i class="live"></i>online ora' : esc(ago(m.seen))}</span></div><span class="iam-chip">Sono io</span></button>`).join("")}</div>
+        <div class="or"><span>oppure</span></div>` : ""}
+      ${pick && me.first
+        ? `<button class="btn pri block" data-act="profile-ok">Sono nuovo: continua come ${esc(fullName(me))}</button>`
+        : `<p class="note">${pick ? "Sei nuovo? Scrivi il tuo nome." : "Come ti chiami? Così chi cucina con te vede chi ha preso cosa."}</p>
       <div class="pform">
-        <label><span>Nome</span><input id="pFirst" value="${esc(sync.me.first)}" placeholder="Nome" autocomplete="given-name" autocapitalize="words" maxlength="30" enterkeyhint="next"></label>
-        <label><span>Cognome</span><input id="pLast" value="${esc(sync.me.last)}" placeholder="Cognome" autocomplete="family-name" autocapitalize="words" maxlength="30" enterkeyhint="done"></label>
+        <label><span>Nome</span><input id="pFirst" value="${esc(me.first)}" placeholder="Nome" autocomplete="given-name" autocapitalize="words" maxlength="30" enterkeyhint="next"></label>
+        <label><span>Cognome</span><input id="pLast" value="${esc(me.last)}" placeholder="Cognome" autocomplete="family-name" autocapitalize="words" maxlength="30" enterkeyhint="done"></label>
       </div>
-      <button class="btn pri block" data-act="profile-ok">Continua</button>
+      <button class="btn pri block" data-act="profile-ok">Continua</button>`}
       <button class="btn ghost block" data-close style="margin-top:8px">Più tardi</button></div>`;
-  }, "profile");
+  }, welcome ? "welcome" : "profile");
 }
 
 function saveProfileFromInputs() {
@@ -479,7 +490,10 @@ async function doJoin(code) {
     if (changed === false) return toast("Sei già in questa casa");
     buzz([20, 40, 20]); confetti(60);
     closeSheet();
-    setTimeout(() => { toast(`Sei entrato in ${sync.houseName() || "una nuova casa"} 🏡`); if (!sync.me.first) profileSheet(true); }, 500);
+    setTimeout(() => {
+      toast(`Sei entrato in ${sync.houseName() || "una nuova casa"} 🏡`);
+      if (!sync.me.first || sync.members().some((m) => m.id !== sync.me.id)) profileSheet(true);
+    }, 500);
   } catch (err) { toast(err.message || "Codice non valido"); }
 }
 
@@ -713,6 +727,14 @@ document.addEventListener("click", async (e) => {
   if (t.closest(".stepper")) return;
   const meal = t.closest("[data-meal]");
   if (meal) return mealSheet(meal.dataset.meal);
+  const iam = t.closest("[data-iam]");
+  if (iam) {
+    const m = sync.member(iam.dataset.iam);
+    await sync.adopt(iam.dataset.iam);
+    buzz([15, 40, 15]); burst(iam.querySelector(".av"), 14);
+    setTimeout(() => { closeSheet(); toast(`Bentornato ${m?.first || ""}! 👋`); }, 350);
+    return;
+  }
   const rm = t.closest("[data-rm]");
   if (rm) {
     const m = sync.member(rm.dataset.rm), prev = store.get("member:" + rm.dataset.rm);
@@ -773,8 +795,8 @@ stagger($("#p-" + page));
 timers.init();
 sync.start();
 setInterval(renderHeader, 60_000);
-if (!sync.me.first) setTimeout(() => { if (!sheet.classList.contains("open") && !ck) profileSheet(true); }, sync.joinedFromLink ? 1200 : 900);
-else if (sync.joinedFromLink) setTimeout(() => toast(`Sei entrato in ${sync.houseName() || "una nuova casa"} 🏡`), 1200);
+if (sync.joinedFromLink) setTimeout(() => { toast(`Sei entrato in ${sync.houseName() || "una nuova casa"} 🏡`); if (!sheet.classList.contains("open") && !ck) profileSheet(true); }, 1200);
+else if (!sync.me.first) setTimeout(() => { if (!sheet.classList.contains("open") && !ck) profileSheet(true); }, 900);
 if ("serviceWorker" in navigator && location.protocol === "https:") {
   navigator.serviceWorker.register("sw.js").then((r) => r.update()).catch(() => {});
   let reloaded = !navigator.serviceWorker.controller; // al primo avvio non serve ricaricare

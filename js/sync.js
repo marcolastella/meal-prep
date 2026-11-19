@@ -124,6 +124,17 @@ export const sync = {
   },
   member(id) { return id === me.id ? { id, ...me } : store.get("member:" + id) ? { id, ...store.get("member:" + id) } : null; },
   removeMember(id) { store.set("member:" + id, null); },
+  /** "Sono io": riprendo l'identità di un membro già presente nella casa. */
+  async adopt(id) {
+    const m = store.get("member:" + id);
+    if (!m || id === me.id) return;
+    const old = me.id;
+    me.id = id; me.first = m.first || ""; me.last = m.last || "";
+    prefs.set("me", me);
+    if (store.get("member:" + old)) store.set("member:" + old, null);
+    publishMe(true);
+    if (configured) await connectRealtime();
+  },
   async join(code) {
     code = normalizeCode(code);
     if (code.length < 16) throw new Error("Codice non valido");

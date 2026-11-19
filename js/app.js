@@ -9,16 +9,8 @@ const buzz = (ms = 8) => { try { navigator.vibrate?.(ms); } catch {} };
 const DAY = 864e5;
 const CHECK = `<svg viewBox="0 0 24 24"><path d="M5 12.5l4.5 4.5L19 7.5" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
 
-/* ---------- Tema ---------- */
-const mq = matchMedia("(prefers-color-scheme: dark)");
-function applyTheme() {
-  const p = prefs.get("theme", "light");
-  const dark = p === "dark" || (p === "auto" && mq.matches);
-  document.documentElement.dataset.theme = dark ? "dark" : "light";
-  document.querySelectorAll('meta[name="theme-color"]').forEach((m) => (m.content = dark ? "#0b1510" : "#f3faf1"));
-}
-mq.addEventListener?.("change", applyTheme);
-applyTheme();
+/* ---------- Tema: sempre chiaro ---------- */
+document.documentElement.dataset.theme = "light";
 
 /* ---------- Conteggi ---------- */
 const spesaKeys = () => SPESA.flatMap((g) => g.items.map((_, i) => `s:${g.id}:${i}`));
@@ -305,7 +297,6 @@ addEventListener("beforeinstallprompt", (e) => { e.preventDefault(); installEvt 
 
 function settingsSheet() {
   openSheet(() => {
-    const th = prefs.get("theme", "light");
     const st = { local: "Solo su questo dispositivo", syncing: "Sincronizzo…", synced: "Sincronizzato", offline: "Offline: sincronizzo appena torni online", error: "Errore di connessione, riprovo" }[sync.status];
     sheetBody.innerHTML = `<h2 id="sheet-title" style="font-size:25px;margin-bottom:6px">Impostazioni</h2>
       <div class="sh-sec">Salvataggio</div>
@@ -314,8 +305,6 @@ function settingsSheet() {
         <div class="prow" style="margin:10px 0"><button class="btn pri" data-act="invite">↗ Invita in casa</button><button class="btn ghost" data-act="sync-now">↻ Sincronizza</button></div>
         <div class="field"><input id="joinCode" placeholder="Incolla un codice o un link d’invito" autocomplete="off" autocapitalize="off"><button class="btn ghost" data-act="join">Entra</button></div>`
       : `<p class="note">I dati sono salvati su questo dispositivo. Per sincronizzarli tra telefoni e condividere la lista, collega Supabase (istruzioni nel README del progetto).</p>`}
-      <div class="sh-sec">Aspetto</div>
-      <div class="set-row"><span>Tema</span><div class="seg">${[["auto", "Auto"], ["light", "Chiaro"], ["dark", "Scuro"]].map(([v, l]) => `<button data-theme-set="${v}" class="${th === v ? "on" : ""}">${l}</button>`).join("")}</div></div>
       ${installEvt ? `<div class="set-row"><span>Installa come app</span><button class="btn ghost" data-act="install">Installa</button></div>` : `<p class="note" style="margin-top:12px">📱 Su iPhone: Condividi → “Aggiungi alla schermata Home” per usarla come un’app, anche offline.</p>`}
       <div class="sh-sec">Gesti</div>
       <ul class="ing"><li>Scorri lo schermo a destra/sinistra per cambiare sezione</li><li>Scorri un articolo verso destra per metterlo nel carrello</li><li>Trascina giù le schede per chiuderle</li><li>In modalità cucina scorri tra i passaggi; lo schermo resta acceso</li><li>Scorri di lato un timer per eliminarlo</li></ul>
@@ -491,8 +480,6 @@ document.addEventListener("click", async (e) => {
   if (tab) return goTo(+tab.dataset.page);
   const meal = t.closest("[data-meal]");
   if (meal) return mealSheet(meal.dataset.meal);
-  const th = t.closest("[data-theme-set]");
-  if (th) { prefs.set("theme", th.dataset.themeSet); applyTheme(); sheetRender?.(); return; }
   const act = t.closest("[data-act]")?.dataset.act;
   if (!act) return;
   if (act === "share") shareList();

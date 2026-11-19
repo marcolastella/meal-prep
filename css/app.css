@@ -7,12 +7,7 @@
   --st:env(safe-area-inset-top,0px); --sb:env(safe-area-inset-bottom,0px);
   color-scheme:light;
 }
-:root[data-theme="dark"]{
-  --bg:#0b1510; --surf:#13211a; --surf2:#1b2d23; --ink:#ecf8ee; --mute:#93ad9b; --line:#244032;
-  --acc:#3ddc76; --acc-ink:#05200f; --acc-soft:#173a26; --ok:#3ddc76; --ok-soft:#173a26;
-  --lime:#b6ec3c; --grad:linear-gradient(135deg,#7fd94a 0%,#22b85a 50%,#0d7f3b 100%);
-  --shadow:0 1px 2px rgba(0,0,0,.3),0 8px 24px rgba(0,0,0,.35); color-scheme:dark;
-}
+
 *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
 html,body{height:100%;margin:0;overflow:hidden;overscroll-behavior:none}
 body{background:var(--bg);color:var(--ink);font:16px/1.5 "Plus Jakarta Sans",-apple-system,BlinkMacSystemFont,system-ui,sans-serif;-webkit-font-smoothing:antialiased;-webkit-text-size-adjust:100%;text-size-adjust:100%}
@@ -128,7 +123,6 @@ ol.steps li{margin:6px 0}
 .fresh .d{font-size:30px;color:var(--acc);font-weight:800;line-height:1;min-width:40px;text-align:center}
 .fresh.warn .d{color:var(--acc)}
 .meal{display:flex;align-items:stretch;border-radius:var(--r);box-shadow:var(--shadow);margin-bottom:12px;overflow:hidden;cursor:pointer;background:linear-gradient(120deg,hsl(var(--h) 80% 94%),hsl(var(--h) 70% 82%));color:#0f2a19;transition:transform .15s var(--ease)}
-:root[data-theme="dark"] .meal{background:linear-gradient(120deg,hsl(var(--h) 40% 20%),hsl(var(--h) 45% 13%));color:var(--ink)}
 .meal:active{transform:scale(.985)}
 .meal .mi{flex:1;padding:16px 16px 14px;min-width:0}
 .meal h3{font-size:20px;margin-bottom:10px}
@@ -137,10 +131,8 @@ ol.steps li{margin:6px 0}
 .meal.all h3{text-decoration:line-through}
 .plates{display:flex;gap:8px}
 .plate{border:0;border-radius:999px;padding:7px 12px 7px 9px;background:rgba(255,255,255,.65);font-size:13px;font-weight:700;cursor:pointer;display:flex;align-items:center;gap:6px;color:inherit}
-:root[data-theme="dark"] .plate{background:rgba(255,255,255,.08)}
 .plate i{width:18px;height:18px;border-radius:50%;border:2px solid currentColor;opacity:.5;font-style:normal;display:grid;place-items:center;font-size:11px}
 .plate.on{background:var(--acc);color:#fff}
-:root[data-theme="dark"] .plate.on{background:var(--acc);color:var(--acc-ink)}
 .plate.on i{opacity:1;border-color:transparent;background:rgba(255,255,255,.2)}
 .plate.on i::after{content:"✓"}
 

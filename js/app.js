@@ -630,7 +630,7 @@ function paintCookTimer() {
   }
   const left = Math.max(0, (prim.end - now) / 1000);
   const tEl = box.querySelector(".bt-t"); if (tEl && !prim.done) tEl.textContent = fmt(left);
-  const prg = box.querySelector(".prg"); if (prg) prg.style.strokeDashoffset = prim.done ? RING_LEN : RING_LEN * (1 - left / prim.dur);
+  const prg = box.querySelector(".prg"); if (prg) prg.style.strokeDashoffset = prim.done ? -RING_LEN : -RING_LEN * (1 - left / prim.dur); // si svuota in senso orario, come una lancetta
   others.forEach((t) => { const b = box.querySelector(`[data-tid2="${t.id}"] b`); if (b && !t.done) b.textContent = fmt((t.end - now) / 1000); });
 }
 setInterval(paintCookTimer, 250);

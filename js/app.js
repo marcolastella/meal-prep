@@ -83,7 +83,7 @@ function renderHeader() {
 
 /* ---------- Pagina: Spesa ---------- */
 const openState = { cart: false, prep: new Set() };
-let justChecked = null;
+let justChecked = null, justTog = null; // solo l'elemento appena toccato si anima
 function ring(n, tot, label) {
   return `<div class="ring" style="--p:${tot ? Math.round((n / tot) * 100) : 0}" data-l="${n}/${tot}"></div><div class="txt"><b>${label}</b>`;
 }
@@ -115,16 +115,16 @@ function renderPrep() {
   const n = PREP.filter((p) => store.get("p:" + p.id)).length, tot = PREP.length;
   let h = "";
   if (n < tot) {
-    h += `<div class="hero"><h2>${n ? "Riprendi da dove eri" : "Un’ora, dieci pasti"}</h2><p>${n ? `Mancano ${tot - n} preparazioni.` : "Ti guido passo per passo, con i timer già pronti."}</p>
+    h += `<div class="hero" style="--fd:-${(Date.now() % 5000) / 1000}s"><h2>${n ? "Riprendi da dove eri" : "Un’ora, dieci pasti"}</h2><p>${n ? `Mancano ${tot - n} preparazioni.` : "Ti guido passo per passo, con i timer già pronti."}</p>
       <button class="btn light" data-cook="prep">▶ ${n ? "Continua" : "Inizia a cucinare"}</button></div>`;
   } else {
-    h += `<div class="hero"><h2>Tutto pronto 🎉</h2><p>Dieci pasti in frigo. Buon appetito per i prossimi giorni.</p><button class="btn light" data-goto="2">Vai ai pasti →</button></div>`;
+    h += `<div class="hero" style="--fd:-${(Date.now() % 5000) / 1000}s"><h2>Tutto pronto 🎉</h2><p>Dieci pasti in frigo. Buon appetito per i prossimi giorni.</p><button class="btn light" data-goto="2">Vai ai pasti →</button></div>`;
   }
   h += `<div class="prog">${ring(n, tot, "Preparazioni")}<span>${n} di ${tot} fatte${n < tot ? " · le cotture vanno in parallelo" : ""}</span></div></div>`;
   h += `<ol class="tl-list">`;
   PREP.forEach((p, idx) => {
     const v = store.get("p:" + p.id), done = !!v, w = who(v);
-    h += `<li class="step${done ? " done" : ""}"><div class="rail"><button class="em" data-tog="p:${p.id}" aria-label="${done ? "Segna da fare" : "Segna fatto"}: ${esc(p.t)}">${p.emoji}</button></div>
+    h += `<li class="step${done ? " done" : ""}${justTog === "p:" + p.id ? " just" : ""}"><div class="rail"><button class="em" data-tog="p:${p.id}" aria-label="${done ? "Segna da fare" : "Segna fatto"}: ${esc(p.t)}">${p.emoji}</button></div>
       <details class="pcard" data-open="prep:${p.id}"${openState.prep.has(p.id) ? " open" : ""}><summary><h3>${esc(p.t)}</h3>${done && w ? avatar(w, 24, "mini") : ""}<span class="mins">≈ ${p.min} min</span></summary>
       <div class="pbody">${p.hint ? `<p class="phint">${esc(p.hint)}</p>` : ""}<ul class="ing">${p.i.map((x) => `<li>${esc(x)}</li>`).join("")}</ul>
       <ol class="steps">${p.s.map((x) => `<li>${withTimers(x, p.t)}</li>`).join("")}</ol>
@@ -144,7 +144,7 @@ function stepperHTML(m) {
 }
 function eatHTML(m) {
   const v = store.get(`m:${m.id}`), on = !!v, w = who(v);
-  return `<button class="plate eat${on ? " on" : ""}" data-tog="m:${m.id}" aria-pressed="${on}"><i>${on && w ? esc(initials(w)) : ""}</i>${on ? "Mangiato" : "Mangiato?"}</button>`;
+  return `<button class="plate eat${on ? " on" : ""}${justTog === "m:" + m.id ? " just" : ""}" data-tog="m:${m.id}" aria-pressed="${on}"><i>${on && w ? esc(initials(w)) : ""}</i>${on ? "Mangiato" : "Mangiato?"}</button>`;
 }
 function renderPasti() {
   const keys = mealKeys(), n = count(keys);
@@ -180,7 +180,7 @@ function renderTabs() {
 
 function renderAll() {
   renderSpesa(); renderPrep(); renderPasti(); renderTabs(); renderHeader();
-  justChecked = null;
+  justChecked = null; justTog = null;
   if (sheet.classList.contains("open") && sheetRender && canRerenderSheet()) sheetRender();
 }
 
@@ -697,7 +697,7 @@ document.addEventListener("click", async (e) => {
   if (tog) {
     e.stopPropagation();
     const k = tog.dataset.tog, v = !store.get(k);
-    if (v) burst(tog.querySelector("i") || tog, k.startsWith("p:") ? 16 : 10);
+    if (v) { burst(tog.querySelector("i") || tog, k.startsWith("p:") ? 16 : 10); justTog = k; }
     store.set(k, v ? sync.me.id : null); buzz(v ? 12 : 6);
     if (k.startsWith("p:")) checkPrepDate();
     checkMilestones(k, v);

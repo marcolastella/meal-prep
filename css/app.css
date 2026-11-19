@@ -295,9 +295,9 @@ ol.steps li{margin:6px 0}
 
 /* ===== Animazioni e tocco ===== */
 .fx-p{position:fixed;z-index:60;pointer-events:none;will-change:transform,opacity}
-.fx-ripple{position:absolute;border-radius:50%;background:currentColor;pointer-events:none;opacity:0;z-index:0}
+.fx-ripple{position:absolute!important;border-radius:50%;background:currentColor;pointer-events:none;opacity:0;z-index:0}
 .btn,.chip,.meal,.plate,.mrow{position:relative;overflow:hidden}
-.btn > *,.chip > *{position:relative}
+.btn > :not(.fx-ripple),.chip > :not(.fx-ripple){position:relative}
 .row .fg{overflow:hidden}
 .btn,.chip,.plate,.em,.meal,.house-btn,.tabs button,.mx,.tm,.icon-btn,.ck-top .x{transition:transform .25s cubic-bezier(.34,1.56,.64,1),background-color .2s,color .2s,box-shadow .2s}
 .btn:active,.chip:active,.plate:active,.house-btn:active,.mx:active,.tm:active{transform:scale(.94)}
@@ -309,14 +309,12 @@ ol.steps li{margin:6px 0}
 @keyframes pop{0%{transform:scale(.6)}60%{transform:scale(1.25)}100%{transform:scale(1)}}
 .row .bgl{transition:background .2s}
 .row .bgl.armed{background:linear-gradient(90deg,#16b04f,#7fe07a)}
-.step.done .em::after{animation:pop .45s cubic-bezier(.34,1.56,.64,1)}
-.plate.on{animation:pop .4s cubic-bezier(.34,1.56,.64,1)}
+.step.done.just .em::after{animation:pop .45s cubic-bezier(.34,1.56,.64,1)}
+.plate.on.just{animation:pop .4s cubic-bezier(.34,1.56,.64,1)}
 .sheet-panel{transition:transform .5s cubic-bezier(.22,1.15,.36,1)}
 .sheet.open .sheet-panel{transform:none}
 .sheet-panel::after{content:"";position:absolute;left:0;right:0;top:100%;height:60px;background:var(--bg)}
-.hero{animation:heroIn .7s cubic-bezier(.2,.9,.25,1) backwards}
-@keyframes heroIn{from{transform:translateY(10px) scale(.98);opacity:0}}
-.hero::after{animation:float 5s ease-in-out infinite}
+.hero::after{animation:float 5s ease-in-out infinite;animation-delay:var(--fd,0s)}
 @keyframes float{50%{transform:rotate(-8deg) translateY(-6px)}}
 .ring{transition:transform .3s}
 .tc{display:inline-block}
@@ -331,7 +329,7 @@ ol.steps li{margin:6px 0}
 .stepper button:disabled{background:var(--surf2);color:var(--mute);opacity:.6;cursor:default}
 .stepper .sv{min-width:84px;text-align:center;font-size:13px;font-weight:700;color:inherit;display:flex;align-items:baseline;justify-content:center;gap:4px;font-variant-numeric:tabular-nums}
 .stepper .sv b{font-size:18px;font-weight:800;display:inline-block}
-.plate.eat{padding:9px 13px 9px 10px}
+.plate.eat{padding:9px 13px 9px 10px;min-width:122px;justify-content:center}
 
 /* ===== Sono io ===== */
 .iam-list{text-align:left;margin:12px 0 4px}

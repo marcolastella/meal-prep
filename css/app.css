@@ -321,3 +321,14 @@ ol.steps li{margin:6px 0}
 .ring{transition:transform .3s}
 .tc{display:inline-block}
 .strip{transform:translateZ(0)}
+
+/* ===== Porzioni ===== */
+.plates{align-items:center;flex-wrap:wrap}
+.stepper{display:inline-flex;align-items:center;gap:2px;background:rgba(255,255,255,.75);border-radius:999px;padding:3px;box-shadow:inset 0 0 0 1px rgba(15,42,25,.06)}
+.sheet-plates .stepper{background:var(--surf);box-shadow:var(--shadow)}
+.stepper button{width:34px;height:34px;border-radius:50%;border:0;background:var(--acc);color:#fff;font:700 20px/1 "Plus Jakarta Sans",sans-serif;cursor:pointer;display:grid;place-items:center;transition:transform .25s cubic-bezier(.34,1.56,.64,1),opacity .2s}
+.stepper button:active{transform:scale(.85)}
+.stepper button:disabled{background:var(--surf2);color:var(--mute);opacity:.6;cursor:default}
+.stepper .sv{min-width:84px;text-align:center;font-size:13px;font-weight:700;color:inherit;display:flex;align-items:baseline;justify-content:center;gap:4px;font-variant-numeric:tabular-nums}
+.stepper .sv b{font-size:18px;font-weight:800;display:inline-block}
+.plate.eat{padding:9px 13px 9px 10px}

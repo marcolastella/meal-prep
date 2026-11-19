@@ -4,6 +4,7 @@ import { sync } from "./sync.js";
 import { timers, withTimers } from "./timers.js";
 import { motionBlur, dragBlur, clearBlur, burst, confetti, ripple, stagger, bump } from "./fx.js";
 import qrcode from "./vendor/qrcode.mjs";
+import { scaleIngredient } from "./scale.js";
 
 const $ = (s, r = document) => r.querySelector(s);
 const esc = (s) => String(s ?? "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/"/g, "&quot;");
@@ -34,7 +35,12 @@ function ago(t) {
 
 /* ---------- Conteggi ---------- */
 const spesaKeys = () => SPESA.flatMap((g) => g.items.map((_, i) => `s:${g.id}:${i}`));
-const mealKeys = () => PASTI.flatMap((m) => [0, 1].map((j) => `m:${m.id}:${j}`));
+const mealKeys = () => PASTI.map((m) => `m:${m.id}`);
+// Porzioni per pasto: 1 di default, regolabili con − e +. Le ricette originali sono per 2.
+const BASE = 2, MAXP = 8;
+const portions = (id) => Math.min(MAXP, Math.max(1, +store.get("n:" + id) || 1));
+const ingr = (m) => m.i.map((x) => scaleIngredient(x, portions(m.id) / BASE));
+const pLabel = (n) => `${n} porzion${n === 1 ? "e" : "i"}`;
 const count = (keys) => keys.filter((k) => store.get(k)).length;
 
 /* ---------- Toast con Annulla ---------- */
@@ -129,13 +135,21 @@ function renderPrep() {
 }
 
 /* ---------- Pagina: Pasti ---------- */
-function plateHTML(m, j, extraStyle = "") {
-  const v = store.get(`m:${m.id}:${j}`), on = !!v, w = who(v);
-  return `<button class="plate${on ? " on" : ""}" ${extraStyle} data-tog="m:${m.id}:${j}" aria-pressed="${on}"><i>${on && w ? esc(initials(w)) : ""}</i>Porzione ${j + 1}</button>`;
+function stepperHTML(m) {
+  const n = portions(m.id);
+  return `<div class="stepper" role="group" aria-label="Porzioni">
+    <button data-step="-1" data-sid="${m.id}" aria-label="Una porzione in meno"${n <= 1 ? " disabled" : ""}>−</button>
+    <span class="sv"><b>${n}</b>${n === 1 ? "porzione" : "porzioni"}</span>
+    <button data-step="1" data-sid="${m.id}" aria-label="Una porzione in più"${n >= MAXP ? " disabled" : ""}>+</button></div>`;
+}
+function eatHTML(m) {
+  const v = store.get(`m:${m.id}`), on = !!v, w = who(v);
+  return `<button class="plate eat${on ? " on" : ""}" data-tog="m:${m.id}" aria-pressed="${on}"><i>${on && w ? esc(initials(w)) : ""}</i>${on ? "Mangiato" : "Mangiato?"}</button>`;
 }
 function renderPasti() {
   const keys = mealKeys(), n = count(keys);
-  let h = `<div class="prog">${ring(n, 10, n === 10 ? "Settimana finita!" : "Pasti")}<span>${10 - n} porzioni rimaste</span></div></div>`;
+  const tot = PASTI.length, porz = PASTI.reduce((a, m) => a + (store.get("m:" + m.id) ? 0 : portions(m.id)), 0);
+  let h = `<div class="prog">${ring(n, tot, n === tot ? "Settimana finita!" : "Pasti")}<span>${tot - n} da mangiare · ${pLabel(porz)} in programma</span></div></div>`;
   const pd = store.get("prepDate");
   if (pd) {
     const days = PLAN.fridgeDays - Math.floor((Date.now() - pd) / DAY);
@@ -144,9 +158,9 @@ function renderPasti() {
     h += `<div class="fresh"><span class="d">🌱</span><span>Dopo la preparazione hai ${PLAN.fridgeDays} giorni per gustarli al meglio. Ognuno si assembla in 5 minuti.</span></div>`;
   }
   for (const m of PASTI) {
-    const all = [0, 1].every((j) => store.get(`m:${m.id}:${j}`));
+    const all = !!store.get("m:" + m.id);
     h += `<article class="meal${all ? " all" : ""}" style="--h:${m.hue}" data-meal="${m.id}" tabindex="0" role="button" aria-label="${esc(m.t)}: apri ricetta">
-      <div class="mi"><h3>${esc(m.t)}</h3><div class="plates">${[0, 1].map((j) => plateHTML(m, j)).join("")}</div></div>
+      <div class="mi"><h3>${esc(m.t)}</h3><div class="plates">${stepperHTML(m)}${eatHTML(m)}</div></div>
       <div class="me" aria-hidden="true">${m.emoji}</div></article>`;
   }
   h += `<div class="chips" style="margin-top:8px"><button class="chip" data-act="reset-m">↺ Azzera i pasti</button></div>`;
@@ -156,7 +170,7 @@ function renderPasti() {
 const lastTabs = ["", "", ""];
 function renderTabs() {
   const s = spesaKeys();
-  const vals = [`${count(s)}/${s.length}`, `${PREP.filter((p) => store.get("p:" + p.id)).length}/${PREP.length}`, `${count(mealKeys())}/10`];
+  const vals = [`${count(s)}/${s.length}`, `${PREP.filter((p) => store.get("p:" + p.id)).length}/${PREP.length}`, `${count(mealKeys())}/${PASTI.length}`];
   vals.forEach((v, i) => {
     const el = $("#tc-" + i);
     if (lastTabs[i] && lastTabs[i] !== v) bump(el);
@@ -352,9 +366,9 @@ sheet.addEventListener("click", (e) => { if (e.target.closest("[data-close]")) c
 function mealSheet(id) {
   const m = PASTI.find((x) => x.id === id);
   openSheet(() => {
-    sheetBody.innerHTML = `<div class="sh-hero"><span class="e">${m.emoji}</span><div><h2 id="sheet-title">${esc(m.t)}</h2><p class="note">Assemblaggio in 5 minuti · 2 porzioni</p></div></div>
-      <div class="plates sheet-plates">${[0, 1].map((j) => plateHTML(m, j)).join("")}</div>
-      <div class="sh-sec">Ingredienti</div><ul class="ing">${m.i.map((x) => `<li>${esc(x)}</li>`).join("")}</ul>
+    sheetBody.innerHTML = `<div class="sh-hero"><span class="e">${m.emoji}</span><div><h2 id="sheet-title">${esc(m.t)}</h2><p class="note">Assemblaggio in 5 minuti</p></div></div>
+      <div class="plates sheet-plates">${stepperHTML(m)}${eatHTML(m)}</div>
+      <div class="sh-sec">Ingredienti · ${pLabel(portions(m.id))}</div><ul class="ing">${ingr(m).map((x) => `<li>${esc(x)}</li>`).join("")}</ul>
       <div class="sh-sec">Procedimento</div><ol class="steps">${m.s.map((x) => `<li>${withTimers(x, m.short)}</li>`).join("")}</ol>
       <button class="btn pri block" data-cook="meal:${m.id}">▶ Cucina passo passo</button>`;
   }, "meal");
@@ -526,7 +540,7 @@ let ck = null, wl = null;
 function cookSteps(kind) {
   if (kind === "prep") return PREP.flatMap((r, ri) => r.s.map((text, i) => ({ r, ri, i, n: r.s.length, text, key: "p:" + r.id })));
   const m = PASTI.find((x) => "meal:" + x.id === kind);
-  return m.s.map((text, i) => ({ r: { ...m, t: m.short, i: m.i }, i, n: m.s.length, text, meal: m }));
+  return m.s.map((text, i) => ({ r: { ...m, t: m.short, i: ingr(m) }, i, n: m.s.length, text, meal: m }));
 }
 function openCook(kind, from) {
   const steps = cookSteps(kind);
@@ -552,7 +566,7 @@ function renderCook() {
   const { steps, kind } = ck;
   const last = kind === "prep"
     ? `<div class="ck-card ck-done"><div class="big">🎉</div><h2 style="font-size:30px;margin:8px 0">Tutto pronto!</h2><p class="note">Dieci pasti in frigo per ${PLAN.fridgeDays} giorni.</p><button class="btn pri" data-goto="2" data-close-cook>Vai ai pasti →</button></div>`
-    : `<div class="ck-card ck-done"><div class="big">😋</div><h2 style="font-size:30px;margin:8px 0">Buon appetito!</h2><button class="btn pri" data-eat="${steps[0].meal.id}">✓ Segna 2 porzioni mangiate</button></div>`;
+    : `<div class="ck-card ck-done"><div class="big">😋</div><h2 style="font-size:30px;margin:8px 0">Buon appetito!</h2><button class="btn pri" data-eat="${steps[0].meal.id}">✓ Segna come mangiato</button></div>`;
   cook.innerHTML = `<div class="ck-top"><button class="x" data-close-cook aria-label="Chiudi">✕</button><div class="ck-bar">${steps.map(() => "<i></i>").join("")}<i></i></div></div>
     <div class="ck-stage"><div class="ck-strip">${steps.map((s) => `<div class="ck-card" aria-hidden="true">
       <div class="ck-rec"><span class="e">${s.r.emoji}</span><span>${esc(s.r.t)}</span></div>
@@ -682,12 +696,21 @@ document.addEventListener("click", async (e) => {
   const ckb = t.closest("[data-ck]");
   if (ckb && ck) return ckGo(ck.idx + +ckb.dataset.ck);
   const eat = t.closest("[data-eat]");
-  if (eat) { store.setMany({ [`m:${eat.dataset.eat}:0`]: sync.me.id, [`m:${eat.dataset.eat}:1`]: sync.me.id }); buzz(20); closeCook(); checkMilestones("m:", true); return; }
+  if (eat) { store.set(`m:${eat.dataset.eat}`, sync.me.id); buzz(20); closeCook(); checkMilestones("m:", true); return; }
+  const stp = t.closest("[data-step]");
+  if (stp) {
+    e.stopPropagation();
+    const id = stp.dataset.sid, n = Math.min(MAXP, Math.max(1, portions(id) + +stp.dataset.step));
+    if (n !== portions(id)) { store.set("n:" + id, n === 1 ? null : n); buzz(6); }
+    requestAnimationFrame(() => document.querySelectorAll(`[data-sid="${id}"]`).forEach((b) => bump(b.parentElement.querySelector(".sv b"))));
+    return;
+  }
   const gt = t.closest("[data-goto]");
   if (gt) { if (t.closest("[data-close-cook]")) closeCook(); goTo(+gt.dataset.goto); return; }
   if (t.closest("[data-close-cook]")) return closeCook();
   const tab = t.closest(".tabs [data-page]");
   if (tab) return goTo(+tab.dataset.page);
+  if (t.closest(".stepper")) return;
   const meal = t.closest("[data-meal]");
   if (meal) return mealSheet(meal.dataset.meal);
   const rm = t.closest("[data-rm]");

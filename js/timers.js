@@ -44,11 +44,45 @@ function woodNote(out, f, t, vel = 1) {
   n.buffer = buf; bp.type = "bandpass"; bp.frequency.value = f * 2.4; bp.Q.value = 3; ng.gain.value = 0.25 * vel;
   n.connect(bp); bp.connect(ng); ng.connect(out); n.start(t);
 }
+// Nota generica "di legno": parziali con decadimenti diversi + colpo di battente.
+function toneNote(out, f, t, parts, click = 0.2, vel = 1) {
+  parts.forEach(([mult, amp, dec, type]) => {
+    const o = ac.createOscillator(), g = ac.createGain();
+    o.type = type || "sine"; o.frequency.value = f * mult;
+    g.gain.setValueAtTime(0.0001, t);
+    g.gain.exponentialRampToValueAtTime(amp * vel, t + 0.004);
+    g.gain.exponentialRampToValueAtTime(0.0001, t + dec);
+    o.connect(g); g.connect(out); o.start(t); o.stop(t + dec + 0.05);
+  });
+  if (click) {
+    const len = Math.floor(ac.sampleRate * 0.02), buf = ac.createBuffer(1, len, ac.sampleRate), d = buf.getChannelData(0);
+    for (let i = 0; i < len; i++) d[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / len, 3);
+    const n = ac.createBufferSource(), bp = ac.createBiquadFilter(), ng = ac.createGain();
+    n.buffer = buf; bp.type = "bandpass"; bp.frequency.value = Math.min(6000, f * 2.4); bp.Q.value = 3; ng.gain.value = click * vel;
+    n.connect(bp); bp.connect(ng); ng.connect(out); n.start(t);
+  }
+}
+const seq = (vol, notes, fn) => { const out = bus(vol), t = ac.currentTime + 0.03; notes.forEach(([f, dt, v = 1]) => fn(out, f, t + dt, v)); };
+
 export const SOUNDS = {
-  wood: { name: "Marimba di legno", every: 2200, play() {
-    const out = bus(0.32), t = ac.currentTime + 0.03;
-    // Do – Mi – Sol – Mi … Do: motivo morbido e riconoscibile
-    [[523.25, 0], [659.25, 0.15], [783.99, 0.3], [659.25, 0.45], [1046.5, 0.68]].forEach(([f, dt], i) => woodNote(out, f, t + dt, i === 4 ? 0.9 : 0.75));
+  wood: { name: "Marimba di legno", emoji: "🪵", desc: "Cinque note calde e morbide", every: 2200, play() {
+    seq(0.32, [[523.25, 0, .75], [659.25, .15, .75], [783.99, .3, .75], [659.25, .45, .75], [1046.5, .68, .9]], (o, f, t, v) => woodNote(o, f, t, v));
+  } },
+  kalimba: { name: "Kalimba", emoji: "🎶", desc: "Piano a pollice, dolce e cristallino", every: 2400, play() {
+    seq(0.3, [[783.99, 0], [987.77, .18], [1174.66, .36], [1567.98, .54, .8], [1174.66, .9, .7]],
+      (o, f, t, v) => toneNote(o, f, t, [[1, .8, 1.3], [2.01, .12, .5], [5.9, .04, .12]], 0.12, v));
+  } },
+  xylo: { name: "Xilofono", emoji: "🎵", desc: "Legno più brillante e allegro", every: 2000, play() {
+    seq(0.28, [[1046.5, 0], [1318.51, .12], [1567.98, .24], [2093, .4, .85]],
+      (o, f, t, v) => toneNote(o, f, t, [[1, .8, .38], [3, .25, .12], [6.2, .05, .05]], 0.3, v));
+  } },
+  bamboo: { name: "Bambù", emoji: "🎋", desc: "Canne di legno che si toccano nel vento", every: 2600, play() {
+    seq(0.26, [[587.33, 0, .8], [783.99, .11, .6], [659.25, .29, .9], [880, .38, .55], [523.25, .6, .7], [783.99, .82, .8]],
+      (o, f, t, v) => toneNote(o, f, t, [[1, .7, .7, "triangle"], [3, .15, .2]], 0.18, v));
+  } },
+  blocks: { name: "Legnetti", emoji: "🥢", desc: "Toc-toc secco, come una clave", every: 1800, play() {
+    seq(0.4, [[880, 0], [880, .17], [660, .55], [660, .72]],
+      (o, f, t, v) => toneNote(o, f, t, [[1, .9, .09], [2.3, .3, .04]], 0.55, v));
   } },
 };
 const soundKey = () => (SOUNDS[prefs.get("timerSound", "wood")] ? prefs.get("timerSound", "wood") : "wood");
@@ -106,7 +140,8 @@ export const timers = {
   add(id, sec) { const t = T.find((t) => t.id == id); if (t && !t.done) { t.end += sec * 1000; t.dur += sec; save(); paint(); } },
   stop(id) { T = T.filter((t) => t.id != id); save(); wake(); paint(); },
   get sound() { return soundKey(); },
-  setSound(k) { if (SOUNDS[k]) { prefs.set("timerSound", k); audio(); SOUNDS[k].play(); } },
+  setSound(k) { if (SOUNDS[k]) prefs.set("timerSound", k); },
+  preview(k) { try { if (SOUNDS[k]) { audio(); SOUNDS[k].play(); } } catch {} },
   start(label, seconds) {
     audio();
     if ("Notification" in window && Notification.permission === "default") Notification.requestPermission().catch(() => {});

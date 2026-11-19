@@ -17,18 +17,13 @@ document.documentElement.dataset.theme = "light";
 const HUES = [142, 96, 168, 30, 200, 330, 52, 265];
 const hueOf = (id) => HUES[[...String(id)].reduce((a, c) => a + c.charCodeAt(0), 0) % HUES.length];
 const initials = (m) => ((m?.first?.[0] || "") + (m?.last?.[0] || "")).toUpperCase() || "?";
+const shortName = (m) => [m?.first, m?.last ? m.last.trim()[0].toUpperCase() + "." : ""].filter(Boolean).join(" ");
 const fullName = (m) => [m?.first, m?.last].filter(Boolean).join(" ") || "Senza nome";
 // Icone per l'avatar, a tema cucina vegana.
 const ICONS = ["🥑", "🥕", "🍅", "🥦", "🌶️", "🍆", "🥬", "🧄", "🧅", "🍋", "🍓", "🫐", "🍉", "🥥", "🍄", "🌽", "🫑", "🥒", "🍠", "🫛", "🍌", "🍍", "🍒", "🥐", "🥖", "🥨", "🍜", "🍝", "🥗", "🥟", "🍲", "🥘", "🫕", "🥣", "🧁", "🍪", "🍩", "☕", "🍵", "🫖", "🥄", "🍴", "🔪", "🧑‍🍳", "🌱", "🌿"];
 function avatar(m, size = 30, cls = "") {
   const on = sync.online.has(m.id), ic = m.icon && ICONS.includes(m.icon) ? m.icon : "";
   return `<span class="av ${cls}${ic ? " emo" : ""}${on ? " on" : ""}" style="--h:${hueOf(m.id)};--s:${size}px" title="${esc(fullName(m))}">${ic || esc(initials(m))}</span>`;
-}
-function iconPicker() {
-  const cur = sync.me.icon || "";
-  return `<div class="icon-pick" role="radiogroup" aria-label="Icona del profilo">
-    <button class="ip${!cur ? " on" : ""}" data-icon="" role="radio" aria-checked="${!cur}" title="Iniziali"><span>${esc(initials(sync.me) === "?" ? "Aa" : initials(sync.me))}</span></button>
-    ${ICONS.map((ic) => `<button class="ip${cur === ic ? " on" : ""}" data-icon="${ic}" role="radio" aria-checked="${cur === ic}">${ic}</button>`).join("")}</div>`;
 }
 function who(v) { return typeof v === "string" ? sync.member(v) : null; }
 function ago(t) {
@@ -83,10 +78,10 @@ function renderHeader() {
   }
   const hn = sync.houseName();
   $("#house").textContent = hn ? "🏡 " + hn : "🏡 La mia casa";
-  const ms = sync.members();
-  $("#avs").innerHTML = ms.length
-    ? ms.slice(0, 3).map((m) => avatar(m, 30)).join("") + (ms.length > 3 ? `<span class="av more" style="--s:30px">+${ms.length - 3}</span>` : "")
-    : `<span class="av add" style="--s:30px">＋</span>`;
+  const me = sync.me;
+  $("#avs").innerHTML = me.first
+    ? avatar({ ...me }, 32) + `<span class="me-name">${esc(shortName(me))}</span>`
+    : `<span class="av add" style="--s:32px">＋</span><span class="me-name">Profilo</span>`;
 }
 
 /* ---------- Pagina: Spesa ---------- */
@@ -402,19 +397,21 @@ function houseSheet() {
       <div class="sh-sec">Chi c’è in casa</div>
       <div class="mlist">${ms.length ? ms.map((m) => `<div class="mrow">${avatar(m, 42)}<div class="mtxt"><b>${esc(fullName(m))}${m.id === me.id ? ' <span class="you">tu</span>' : ""}</b><span>${sync.online.has(m.id) ? '<i class="live"></i>online ora' : esc(ago(m.seen))}</span></div>${m.id !== me.id ? `<button class="mx" data-rm="${esc(m.id)}" aria-label="Rimuovi ${esc(fullName(m))}">✕</button>` : ""}</div>`).join("") : `<p class="note">Ancora nessuno: scrivi il tuo nome qui sotto e invita chi cucina con te.</p>`}</div>
       <div class="sh-sec">Il tuo profilo</div>
+      <div class="me-card">
+        <div class="me-top">${avatar({ ...me, id: me.id }, 64)}<div class="me-txt"><b>${esc(me.first ? shortName(me) : "Senza nome")}</b><span>così ti vedono in casa</span></div></div>
+        <button class="opt-row" data-act="edit-avatar"><span class="oi">🖼️</span><span class="ot"><b>Modifica avatar</b><span>Scegli un’icona a tema cucina</span></span><span class="chev">›</span></button>
+        <button class="opt-row" data-act="edit-sound"><span class="oi">${SOUNDS[timers.sound].emoji}</span><span class="ot"><b>Modifica suono timer</b><span>${esc(SOUNDS[timers.sound].name)}</span></span><span class="chev">›</span></button>
+      </div>
       <div class="pform">
         <label><span>Nome</span><input id="pFirst" value="${esc(me.first)}" placeholder="Marco" autocomplete="given-name" autocapitalize="words" maxlength="30" enterkeyhint="next"></label>
         <label><span>Cognome</span><input id="pLast" value="${esc(me.last)}" placeholder="Rossi" autocomplete="family-name" autocapitalize="words" maxlength="30" enterkeyhint="done"></label>
       </div>
-      <div class="sh-sec">La tua icona</div>
-      ${iconPicker()}
       <div class="sh-sec">Entra in un’altra casa</div>
       <div class="field"><input id="joinCode" placeholder="Incolla codice o link d’invito" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false"><button class="btn ghost" data-act="join">Entra</button></div>
       <p class="note">Entrando in un’altra casa vedrai la sua lista al posto della tua.</p>
       <div class="sh-sec">Sincronizzazione</div>
       <div class="set-row"><span class="note"><b>${st}</b><br>Codice: <span class="code">${esc(sync.household)}</span></span><button class="btn ghost" data-act="sync-now">↻</button></div>
       ${installEvt ? `<div class="set-row"><span>Installa come app</span><button class="btn ghost" data-act="install">Installa</button></div>` : `<p class="note" style="margin-top:12px">📱 Su iPhone: Condividi → “Aggiungi alla schermata Home” per usarla come un’app, anche offline.</p>`}
-      <div class="set-row"><span>⏱ Suono del timer: marimba di legno<br><span class="note">Suona finché non premi “Ferma”.</span></span><button class="btn ghost" data-sound="wood">▶ Ascolta</button></div>
       <div class="sh-sec">Gesti</div>
       <ul class="ing"><li>Scorri lo schermo a destra/sinistra per cambiare sezione</li><li>Scorri un articolo verso destra per metterlo nel carrello</li><li>Trascina giù le schede per chiuderle</li><li>In modalità cucina scorri tra i passaggi; lo schermo resta acceso</li><li>Scorri di lato un timer per eliminarlo</li></ul>
       <div class="sh-sec">Nuova settimana</div>
@@ -468,12 +465,42 @@ function profileSheet(welcome) {
         <label><span>Nome</span><input id="pFirst" value="${esc(me.first)}" placeholder="Nome" autocomplete="given-name" autocapitalize="words" maxlength="30" enterkeyhint="next"></label>
         <label><span>Cognome</span><input id="pLast" value="${esc(me.last)}" placeholder="Cognome" autocomplete="family-name" autocapitalize="words" maxlength="30" enterkeyhint="done"></label>
       </div>
-      <div class="sh-sec" style="text-align:left">Scegli un’icona</div>
-      ${iconPicker()}
+      <button class="opt-row solo" data-act="avatar-welcome">${avatar({ ...me }, 44)}<span class="ot"><b>Scegli il tuo avatar</b><span>${me.icon ? "Tocca per cambiarlo" : "Facoltativo"}</span></span><span class="chev">›</span></button>
       <button class="btn pri block" data-act="profile-ok" style="margin-top:14px">Continua</button>`}
       <button class="btn ghost block" data-close style="margin-top:8px">Più tardi</button></div>`;
   }, welcome ? "welcome" : "profile");
 }
+
+// Modifica avatar: anteprima grande, tutte le icone visibili, Salva / Annulla.
+function avatarSheet(back) {
+  let pending = sync.me.icon || "";
+  openSheet(() => {
+    const me = sync.me, prev = { ...me, icon: pending };
+    sheetBody.innerHTML = `<div class="pick-sheet">
+      <h2 id="sheet-title">Modifica avatar</h2>
+      <div class="av-preview" id="avPrev">${avatar(prev, 104)}</div>
+      <p class="note" style="text-align:center">${esc(me.first ? shortName(me) : "Il tuo avatar")}</p>
+      <div class="icon-grid">
+        <button class="ip${!pending ? " on" : ""}" data-av="" aria-label="Iniziali"><span>${esc(initials(me) === "?" ? "Aa" : initials(me))}</span></button>
+        ${ICONS.map((ic) => `<button class="ip${pending === ic ? " on" : ""}" data-av="${ic}">${ic}</button>`).join("")}
+      </div>
+      <div class="pick-actions"><button class="btn ghost" data-act="pick-cancel">Annulla</button><button class="btn pri" data-act="pick-save">Salva</button></div></div>`;
+  }, "avatar");
+  pickState = { kind: "avatar", get: () => pending, set: (v) => { pending = v; }, back };
+}
+function soundSheet(back) {
+  let pending = timers.sound;
+  openSheet(() => {
+    sheetBody.innerHTML = `<div class="pick-sheet">
+      <h2 id="sheet-title">Suono del timer</h2>
+      <p class="note">Tocca un suono per ascoltarlo, poi salva. Suona finché non premi “Ferma”.</p>
+      <div class="snd-list">${Object.entries(SOUNDS).map(([k, v]) => `<button class="snd${pending === k ? " on" : ""}" data-snd="${k}">
+        <span class="se">${v.emoji}</span><span class="ot"><b>${esc(v.name)}</b><span>${esc(v.desc)}</span></span><span class="radio"></span></button>`).join("")}</div>
+      <div class="pick-actions"><button class="btn ghost" data-act="pick-cancel">Annulla</button><button class="btn pri" data-act="pick-save">Salva</button></div></div>`;
+  }, "sound");
+  pickState = { kind: "sound", get: () => pending, set: (v) => { pending = v; }, back };
+}
+let pickState = null;
 
 function saveProfileFromInputs() {
   const f = $("#pFirst"), l = $("#pLast");
@@ -798,13 +825,19 @@ document.addEventListener("click", async (e) => {
   if (bts && bts.dataset.btStop) { timers.stop(bts.dataset.btStop); buzz(10); paintCookTimer(); setNextButton(); return; }
   const bta = t.closest("[data-bt-add]");
   if (bta) { timers.add(bta.dataset.btAdd, 60); bump($(".bt-t", cook)); paintCookTimer(); return; }
-  const snd = t.closest("[data-sound]");
-  if (snd) { timers.setSound(snd.dataset.sound); bump(snd); return; }
-  const ic = t.closest("[data-icon]");
-  if (ic) {
-    sync.setIcon(ic.dataset.icon);
-    document.querySelectorAll(".icon-pick .ip").forEach((b) => { const on = b === ic; b.classList.toggle("on", on); b.setAttribute("aria-checked", on); });
-    bump(ic); buzz(8); renderHeader();
+  const av = t.closest("[data-av]");
+  if (av && pickState?.kind === "avatar") {
+    pickState.set(av.dataset.av);
+    document.querySelectorAll("[data-av]").forEach((b) => b.classList.toggle("on", b === av));
+    $("#avPrev").innerHTML = avatar({ ...sync.me, icon: av.dataset.av }, 104);
+    bump($("#avPrev .av")); buzz(6);
+    return;
+  }
+  const sn = t.closest("[data-snd]");
+  if (sn && pickState?.kind === "sound") {
+    pickState.set(sn.dataset.snd);
+    document.querySelectorAll("[data-snd]").forEach((b) => b.classList.toggle("on", b === sn));
+    timers.preview(sn.dataset.snd);
     return;
   }
   const iam = t.closest("[data-iam]");
@@ -824,6 +857,15 @@ document.addEventListener("click", async (e) => {
   }
   const act = t.closest("[data-act]")?.dataset.act;
   if (!act) return;
+  if (act === "edit-avatar") { saveProfileFromInputs(); return avatarSheet(houseSheet); }
+  if (act === "edit-sound") { saveProfileFromInputs(); return soundSheet(houseSheet); }
+  if (act === "avatar-welcome") { saveProfileFromInputs(); return avatarSheet(() => profileSheet(true)); }
+  if (act === "pick-save" && pickState) {
+    if (pickState.kind === "avatar") { sync.setIcon(pickState.get()); toast("Avatar salvato"); }
+    else { timers.setSound(pickState.get()); toast(`Suono: ${SOUNDS[pickState.get()].name}`); }
+    buzz(12); const back = pickState.back; pickState = null; renderHeader(); return back ? back() : closeSheet();
+  }
+  if (act === "pick-cancel" && pickState) { const back = pickState.back; pickState = null; return back ? back() : closeSheet(); }
   if (act === "share") shareList();
   if (act === "reset-s") resetKeys(spesaKeys(), "Spesa azzerata");
   if (act === "reset-p") resetKeys([...PREP.map((p) => "p:" + p.id), "prepDate"], "Preparazione azzerata");

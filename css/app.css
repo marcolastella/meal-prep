@@ -400,3 +400,54 @@ body.cooking #timers{display:none}
 .seg.wide{width:100%}
 .seg.wide button{flex:1;padding:10px 8px}
 @media (max-height:700px){.bt-ring{width:104px;height:104px}.bt-t{font-size:30px}}
+
+/* ===== Pulsante profilo in alto: avatar + "Marco L." ===== */
+.house-btn{padding:4px 12px 4px 4px;gap:8px}
+.avs{align-items:center;gap:8px}
+.me-name{font-weight:800;font-size:14.5px;color:var(--ink);white-space:nowrap;max-width:110px;overflow:hidden;text-overflow:ellipsis;letter-spacing:-.01em}
+.house-btn .dot{width:8px;height:8px}
+
+/* ===== Profilo nella scheda casa ===== */
+.me-card{background:var(--surf);border-radius:22px;box-shadow:var(--shadow);overflow:hidden;margin-bottom:12px}
+.me-top{display:flex;align-items:center;gap:14px;padding:16px 16px 12px}
+.me-txt{display:flex;flex-direction:column}
+.me-txt b{font-size:19px;letter-spacing:-.02em}
+.me-txt span{font-size:13px;color:var(--mute)}
+.opt-row{display:flex;align-items:center;gap:12px;width:100%;border:0;border-top:1px solid var(--line);background:transparent;padding:13px 16px;font:inherit;color:inherit;text-align:left;cursor:pointer;position:relative;overflow:hidden}
+.opt-row:active{background:var(--acc-soft)}
+.opt-row.solo{border:0;background:var(--surf);border-radius:18px;box-shadow:var(--shadow);margin-top:6px}
+.oi{width:40px;height:40px;border-radius:12px;background:var(--surf2);display:grid;place-items:center;font-size:21px;flex:none}
+.ot{flex:1;min-width:0;display:flex;flex-direction:column}
+.ot b{font-size:15.5px}
+.ot span{font-size:13px;color:var(--mute)}
+.chev{font-size:24px;color:var(--acc);line-height:1}
+
+/* ===== Schede di scelta (avatar, suono) ===== */
+.pick-sheet h2{font-size:24px;text-align:center;margin-bottom:6px}
+.pick-sheet > .note{text-align:center;margin:0 auto 12px;max-width:34ch}
+.av-preview{display:grid;place-items:center;margin:10px 0 4px}
+.av-preview .av{box-shadow:0 12px 30px rgba(17,120,60,.25);border:4px solid #fff}
+.icon-grid{display:grid;grid-template-columns:repeat(6,1fr);gap:8px;margin:14px 0 4px}
+.icon-grid .ip{aspect-ratio:1;border:0;border-radius:14px;background:var(--surf);box-shadow:var(--shadow);font-size:26px;line-height:1;cursor:pointer;display:grid;place-items:center;transition:transform .25s cubic-bezier(.34,1.56,.64,1),box-shadow .2s,background .2s}
+.icon-grid .ip span{font:800 14px "Plus Jakarta Sans",sans-serif;color:var(--acc)}
+.icon-grid .ip:active{transform:scale(.88)}
+.icon-grid .ip.on{background:var(--acc-soft);box-shadow:0 0 0 3px var(--acc)}
+.pick-actions{position:sticky;bottom:calc(-24px - var(--sb));display:flex;gap:10px;padding:14px 0 calc(4px);margin-top:10px;background:linear-gradient(transparent,var(--bg) 30%)}
+.pick-actions .btn{flex:1;justify-content:center;padding:15px}
+.snd-list{display:flex;flex-direction:column;gap:8px}
+.snd{display:flex;align-items:center;gap:12px;border:0;background:var(--surf);box-shadow:var(--shadow);border-radius:18px;padding:12px 14px;font:inherit;color:inherit;text-align:left;cursor:pointer;transition:box-shadow .2s,background .2s,transform .2s}
+.snd:active{transform:scale(.98)}
+.snd .se{width:44px;height:44px;border-radius:14px;background:var(--surf2);display:grid;place-items:center;font-size:23px;flex:none}
+.snd .radio{width:22px;height:22px;border-radius:50%;border:2px solid var(--line);flex:none;transition:all .2s}
+.snd.on{box-shadow:0 0 0 2.5px var(--acc),var(--shadow);background:var(--acc-soft)}
+.snd.on .radio{border:6px solid var(--acc);background:#fff}
+
+/* ===== Modalità cucina: il timer non viene mai spinto fuori ===== */
+.cook{height:100dvh}
+.ck-top,.ck-timer,.ck-nav{flex:none}
+.ck-stage{flex:1 1 auto;min-height:0}
+@media (max-height:800px){.bt{padding:10px 12px;gap:12px;border-radius:24px}.bt-ring{width:96px;height:96px}.bt-t{font-size:28px}.bt .btn.ghost{padding:9px 12px}.bt-stop{font-size:16px;padding:12px}.ck-txt{font-size:clamp(21px,5.8vw,30px);margin-bottom:14px}}
+@media (max-height:640px){.bt-ring{width:78px;height:78px}.bt-t{font-size:23px}.bt-l{font-size:12.5px}}
+.top{flex-wrap:wrap;row-gap:0;align-items:flex-end}
+.top .sub{flex:0 0 100%;margin-top:3px}
+.house-btn{margin-bottom:4px}

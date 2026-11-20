@@ -570,3 +570,36 @@ body.cooking #timers{display:none}
   .hero p{max-width:62%}
   .hero h2{font-size:28px;max-width:80%}
 }
+
+/* ===== Spesa: giorno e modalità spesa ===== */
+.spesa-day{margin:2px 0 16px}
+.big-shop{width:100%;justify-content:flex-start;gap:14px;padding:16px 18px;border-radius:22px;background:var(--grad);color:#fff;box-shadow:0 10px 26px rgba(17,140,70,.28);text-align:left}
+.big-shop .cart-ico{font-size:30px;width:52px;height:52px;border-radius:16px;background:rgba(255,255,255,.22);display:grid;place-items:center;flex:none}
+.big-shop b{display:block;font-size:19px;letter-spacing:-.02em}
+.big-shop small{display:block;font-size:13.5px;font-weight:600;opacity:.9}
+.sd-row{margin:14px 4px 6px;font-size:14px;color:var(--mute)}
+.sd-row b{color:var(--ink)}
+.day-chips{margin-bottom:0}
+.day-chips .chip{text-transform:capitalize}
+.shop-banner{display:flex;align-items:center;gap:12px;justify-content:space-between;background:var(--grad);color:#fff;border-radius:22px;padding:14px 14px 14px 16px;margin:2px 0 16px;box-shadow:0 10px 26px rgba(17,140,70,.28);position:relative;overflow:hidden}
+.shop-banner::after{content:"";position:absolute;inset:0;background:linear-gradient(100deg,transparent 30%,rgba(255,255,255,.18) 50%,transparent 70%);background-size:250% 100%;animation:shine 3s linear infinite;pointer-events:none}
+@keyframes shine{from{background-position:150% 0}to{background-position:-100% 0}}
+.sb-l{display:flex;align-items:center;gap:12px;min-width:0}
+.sb-l .cart-ico{font-size:28px;animation:cartRoll 2.4s ease-in-out infinite}
+@keyframes cartRoll{0%,100%{transform:translateX(0)}50%{transform:translateX(4px) rotate(-4deg)}}
+.sb-l b{display:block;font-size:16.5px}
+.sb-l span{display:block;font-size:12.5px;opacity:.9}
+.shop-banner .btn.light{flex:none;padding:11px 14px;font-size:14px;position:relative;z-index:1}
+
+/* ===== Pasti: Pranzo / Cena ===== */
+.plate.slot{min-width:118px;justify-content:flex-start}
+.plate.slot .ok{margin-left:auto;font-weight:800}
+.plate.slot .yum{font-size:19px}
+@media (min-width: 744px){ .big-shop b{font-size:22px}.big-shop small{font-size:15px}.plate.slot{min-width:134px} }
+.chips .chip{flex:none}
+.btn.big-shop{background:var(--grad)}
+.plates:has(.slot){flex-wrap:nowrap;gap:6px}
+.plate.slot{min-width:0;flex:1 1 0;max-width:150px;padding:8px 10px 8px 8px;gap:6px;font-size:13.5px}
+.plate.slot .yum{font-size:17px}
+.plate.slot .av.eat-av{--s:20px !important;margin-left:auto}
+@media (min-width: 744px){ .plate.slot{min-width:0;max-width:170px;font-size:15px;padding:9px 12px 9px 10px}.plate.slot .yum{font-size:20px} }

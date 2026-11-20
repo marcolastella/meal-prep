@@ -4,7 +4,6 @@ import { sync } from "./sync.js";
 import { timers, withTimers, stepTimer, SOUNDS, fmt } from "./timers.js";
 import { motionBlur, dragBlur, clearBlur, burst, confetti, ripple, stagger, bump } from "./fx.js";
 import qrcode from "./vendor/qrcode.mjs";
-import { scaleIngredient } from "./scale.js";
 
 const $ = (s, r = document) => r.querySelector(s);
 const esc = (s) => String(s ?? "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/"/g, "&quot;");
@@ -38,12 +37,19 @@ function ago(t) {
 
 /* ---------- Conteggi ---------- */
 const spesaKeys = () => SPESA.flatMap((g) => g.items.map((_, i) => `s:${g.id}:${i}`));
-const mealKeys = () => PASTI.map((m) => `m:${m.id}`);
-// Porzioni per pasto: 1 di default, regolabili con − e +. Le ricette originali sono per 2.
-const BASE = 2, MAXP = 8;
-const portions = (id) => Math.min(MAXP, Math.max(1, +store.get("n:" + id) || 1));
-const ingr = (m) => m.i.map((x) => scaleIngredient(x, portions(m.id) / BASE));
-const pLabel = (n) => `${n} porzion${n === 1 ? "e" : "i"}`;
+// Ogni ricetta fa 2 porzioni: una per pranzo, una per cena.
+const SLOTS = [["pranzo", "🌞", "Pranzo"], ["cena", "🌙", "Cena"]];
+const mealKeys = () => PASTI.flatMap((m) => SLOTS.map(([s]) => `m:${m.id}:${s}`));
+const TOT_PORZ = PASTI.length * SLOTS.length;
+const ingr = (m) => m.i;
+/* ---------- Giorno della spesa ---------- */
+const dayStart = (t) => { const d = new Date(t); d.setHours(0, 0, 0, 0); return d.getTime(); };
+const dayLabel = (t, long) => {
+  const diff = Math.round((dayStart(Date.now()) - dayStart(t)) / DAY);
+  if (diff === 0) return "oggi";
+  if (diff === 1) return "ieri";
+  return new Date(t).toLocaleDateString("it-IT", long ? { weekday: "long", day: "numeric", month: "long" } : { weekday: "short", day: "numeric" });
+};
 const count = (keys) => keys.filter((k) => store.get(k)).length;
 
 /* ---------- Toast con Annulla ---------- */
@@ -73,8 +79,9 @@ function renderHeader() {
     const day = new Date(pd).toLocaleDateString("it-IT", { weekday: "long" });
     left.innerHTML = days > 1 ? `Preparato ${day} · <b>ancora ${days} giorni</b>` : days === 1 ? `Preparato ${day} · <b>ultimo giorno</b>` : `Preparato ${day} · <b>da consumare subito</b>`;
   } else {
-    const s = spesaKeys(), n = s.length - count(s);
-    left.innerHTML = n ? `${PLAN.subtitle} · <b>${n} da comprare</b>` : `Spesa fatta · <b>pronto a cucinare</b>`;
+    const s = spesaKeys(), n = s.length - count(s), sd = store.get("spesaDate");
+    const pre = sd ? `Spesa di ${dayLabel(sd)}` : PLAN.subtitle;
+    left.innerHTML = shoppingNow() ? `🛒 <b>Spesa in corso</b> · ${n} da prendere` : n ? `${pre} · <b>${n} da comprare</b>` : `${pre} · <b>pronto a cucinare</b>`;
   }
   const hn = sync.houseName();
   $("#house").textContent = hn ? "🏡 " + hn : "🏡 La mia casa";
@@ -95,9 +102,22 @@ function rowHTML(k, text, v) {
   return `<div class="row${checked ? " checked" : ""}${justChecked === k ? " just" : ""}" data-k="${k}"><div class="bgl">${checked ? "↺ Rimetti in lista" : "✓ Preso"}</div>
     <div class="fg" role="checkbox" aria-checked="${checked}" tabindex="0"><span class="box">${CHECK}</span><span class="lbl">${esc(text)}</span>${checked && w ? avatar(w, 24, "mini") : ""}</div></div>`;
 }
+function spesaDayHTML() {
+  const sd = store.get("spesaDate"), sh = shoppingNow();
+  if (sh) {
+    const w = who(sh.by), mine = sh.by === sync.me.id;
+    return `<div class="shop-banner"><div class="sb-l"><span class="cart-ico">🛒</span><div><b>${mine ? "Stai facendo la spesa" : `${esc(w ? w.first : "Qualcuno")} sta facendo la spesa`}</b><span>Spesa di ${esc(dayLabel(sh.at, true))} · lo schermo resta acceso</span></div></div>
+      <button class="btn light" data-act="shop-end">Fine spesa</button></div>`;
+  }
+  const days = [...Array(7)].map((_, i) => dayStart(Date.now()) - i * DAY);
+  return `<div class="spesa-day">
+    <button class="btn pri big-shop" data-act="shop-start"><span class="cart-ico">🛒</span><span><b>Fai la spesa</b><small>Imposta oggi come giorno della spesa</small></span></button>
+    <div class="sd-row"><span class="sd-l">${sd ? `Spesa di <b>${esc(dayLabel(sd, true))}</b>` : "Oppure scegli quando l’hai fatta:"}</span></div>
+    <div class="chips day-chips">${days.map((d) => `<button class="chip${sd && dayStart(sd) === d ? " on" : ""}" data-sday="${d}">${esc(dayLabel(d))}</button>`).join("")}</div></div>`;
+}
 function renderSpesa() {
   const keys = spesaKeys(), n = count(keys), tot = keys.length;
-  let h = `<div class="prog">${ring(n, tot, n === tot ? "Spesa completata" : "Lista della spesa")}<span>${n} di ${tot} nel carrello</span></div></div>`;
+  let h = spesaDayHTML() + `<div class="prog">${ring(n, tot, n === tot ? "Spesa completata" : "Lista della spesa")}<span>${n} di ${tot} nel carrello</span></div></div>`;
   h += `<div class="chips"><button class="chip" data-act="share">↗ Condividi lista</button><button class="chip" data-act="reset-s">↺ Azzera</button></div>`;
   let any = false;
   h += `<div class="groups">`;
@@ -140,21 +160,15 @@ function renderPrep() {
 }
 
 /* ---------- Pagina: Pasti ---------- */
-function stepperHTML(m) {
-  const n = portions(m.id);
-  return `<div class="stepper" role="group" aria-label="Porzioni">
-    <button data-step="-1" data-sid="${m.id}" aria-label="Una porzione in meno"${n <= 1 ? " disabled" : ""}><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 12h12"/></svg></button>
-    <span class="sv"><b>${n}</b>${n === 1 ? "porzione" : "porzioni"}</span>
-    <button data-step="1" data-sid="${m.id}" aria-label="Una porzione in più"${n >= MAXP ? " disabled" : ""}><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 12h12M12 6v12"/></svg></button></div>`;
-}
-function eatHTML(m) {
-  const v = store.get(`m:${m.id}`), on = !!v, w = who(v);
-  return `<button class="plate eat${on ? " on" : ""}${justTog === "m:" + m.id ? " just" : ""}" data-tog="m:${m.id}" aria-pressed="${on}" aria-label="${on ? "Divorato, tocca per annullare" : "Segna come mangiato"}"><span class="yum">😋</span><span class="et">${on ? "Divorato!" : "Mangiato"}</span>${on && w ? avatar(w, 22, "eat-av") : ""}</button>`;
+function slotsHTML(m) {
+  return SLOTS.map(([slot, emo, label]) => {
+    const k = `m:${m.id}:${slot}`, v = store.get(k), on = !!v, w = who(v);
+    return `<button class="plate eat slot${on ? " on" : ""}${justTog === k ? " just" : ""}" data-tog="${k}" aria-pressed="${on}" aria-label="${label}${on ? ": mangiato, tocca per annullare" : ": segna come mangiato"}"><span class="yum">${emo}</span><span class="et">${label}</span>${on && w ? avatar(w, 22, "eat-av") : on ? '<span class="ok">✓</span>' : ""}</button>`;
+  }).join("");
 }
 function renderPasti() {
   const keys = mealKeys(), n = count(keys);
-  const tot = PASTI.length, porz = PASTI.reduce((a, m) => a + (store.get("m:" + m.id) ? 0 : portions(m.id)), 0);
-  let h = `<div class="prog">${ring(n, tot, n === tot ? "Settimana finita!" : "Pasti")}<span>${tot - n} da mangiare · ${pLabel(porz)} in programma</span></div></div>`;
+  let h = `<div class="prog">${ring(n, TOT_PORZ, n === TOT_PORZ ? "Settimana finita!" : "Pasti")}<span>${TOT_PORZ - n} porzioni da mangiare · 2 per piatto</span></div></div>`;
   const pd = store.get("prepDate");
   if (pd) {
     const days = PLAN.fridgeDays - Math.floor((Date.now() - pd) / DAY);
@@ -164,9 +178,9 @@ function renderPasti() {
   }
   h += `<div class="meals">`;
   for (const m of PASTI) {
-    const all = !!store.get("m:" + m.id);
+    const all = SLOTS.every(([sl]) => store.get(`m:${m.id}:${sl}`));
     h += `<article class="meal${all ? " all" : ""}" style="--h:${m.hue}" data-meal="${m.id}" tabindex="0" role="button" aria-label="${esc(m.t)}: apri ricetta">
-      <div class="mi"><h3>${esc(m.t)}</h3><div class="plates">${stepperHTML(m)}${eatHTML(m)}</div></div>
+      <div class="mi"><h3>${esc(m.t)}</h3><div class="plates">${slotsHTML(m)}</div></div>
       <div class="me" aria-hidden="true">${m.emoji}</div></article>`;
   }
   h += `</div>`;
@@ -177,7 +191,7 @@ function renderPasti() {
 const lastTabs = ["", "", ""];
 function renderTabs() {
   const s = spesaKeys();
-  const vals = [`${count(s)}/${s.length}`, `${PREP.filter((p) => store.get("p:" + p.id)).length}/${PREP.length}`, `${count(mealKeys())}/${PASTI.length}`];
+  const vals = [`${count(s)}/${s.length}`, `${PREP.filter((p) => store.get("p:" + p.id)).length}/${PREP.length}`, `${count(mealKeys())}/${TOT_PORZ}`];
   vals.forEach((v, i) => {
     const el = $("#tc-" + i);
     if (lastTabs[i] && lastTabs[i] !== v) bump(el);
@@ -191,6 +205,29 @@ function renderAll() {
   if (sheet.classList.contains("open") && sheetRender && canRerenderSheet()) sheetRender();
 }
 
+/* ---------- Modalità spesa ---------- */
+// Una spesa dimenticata aperta scade da sola dopo 4 ore.
+const shoppingNow = () => { const sh = store.get("shopping"); return sh && Date.now() - sh.at < 4 * 36e5 ? sh : null; };
+let shopLock = null;
+async function keepAwake(on) {
+  try {
+    if (on && !shopLock && navigator.wakeLock) { shopLock = await navigator.wakeLock.request("screen"); shopLock.onrelease = () => { shopLock = null; }; }
+    if (!on && shopLock) { await shopLock.release(); shopLock = null; }
+  } catch {}
+}
+function startShopping() {
+  const today = dayStart(Date.now());
+  store.setMany({ spesaDate: today, shopping: { by: sync.me.id, at: Date.now() } });
+  buzz([15, 40, 15]); goTo(0); keepAwake(true);
+  toast("🛒 Buona spesa! Spunta gli articoli man mano");
+}
+function endShopping(manual) {
+  if (!store.get("shopping")) return;
+  store.set("shopping", null); keepAwake(false);
+  if (manual) { buzz(12); toast("Spesa terminata"); }
+}
+document.addEventListener("visibilitychange", () => { if (!document.hidden && store.get("shopping")?.by === sync.me.id) keepAwake(true); });
+
 /* ---------- Traguardi ---------- */
 function checkPrepDate() {
   const all = PREP.every((p) => store.get("p:" + p.id));
@@ -200,7 +237,7 @@ function checkPrepDate() {
 }
 function checkMilestones(k, v) {
   if (!v) return;
-  if (k.startsWith("s:") && spesaKeys().every((x) => store.get(x))) { setTimeout(confetti, 250); toast("🛒 Spesa completata!"); }
+  if (k.startsWith("s:") && spesaKeys().every((x) => store.get(x))) { setTimeout(confetti, 250); toast("🛒 Spesa completata!"); if (store.get("shopping")) endShopping(false); }
   if (k.startsWith("m:") && mealKeys().every((x) => store.get(x))) { setTimeout(confetti, 250); toast("🎉 Settimana completata! Pronto per un nuovo meal prep?"); }
 }
 
@@ -382,8 +419,8 @@ function mealSheet(id) {
   const m = PASTI.find((x) => x.id === id);
   openSheet(() => {
     sheetBody.innerHTML = `<div class="sh-hero"><span class="e">${m.emoji}</span><div><h2 id="sheet-title">${esc(m.t)}</h2><p class="note">Assemblaggio in 5 minuti</p></div></div>
-      <div class="plates sheet-plates">${stepperHTML(m)}${eatHTML(m)}</div>
-      <div class="sh-sec">Ingredienti · ${pLabel(portions(m.id))}</div><ul class="ing">${ingr(m).map((x) => `<li>${esc(x)}</li>`).join("")}</ul>
+      <div class="plates sheet-plates">${slotsHTML(m)}</div>
+      <div class="sh-sec">Ingredienti · 2 porzioni</div><ul class="ing">${ingr(m).map((x) => `<li>${esc(x)}</li>`).join("")}</ul>
       <div class="sh-sec">Procedimento</div><ol class="steps">${m.s.map((x) => `<li>${withTimers(x, m.short)}</li>`).join("")}</ol>
       <button class="btn pri block" data-cook="meal:${m.id}">▶ Cucina passo passo</button>`;
   }, "meal");
@@ -631,7 +668,7 @@ function renderCook() {
   const { steps, kind } = ck;
   const last = kind === "prep"
     ? `<div class="ck-card ck-done"><div class="big">🎉</div><h2 style="font-size:30px;margin:8px 0">Tutto pronto!</h2><p class="note">Dieci pasti in frigo per ${PLAN.fridgeDays} giorni.</p><button class="btn pri" data-goto="2" data-close-cook>Vai ai pasti →</button></div>`
-    : `<div class="ck-card ck-done"><div class="big">😋</div><h2 style="font-size:30px;margin:8px 0">Buon appetito!</h2><button class="btn pri" data-eat="${steps[0].meal.id}">✓ Segna come mangiato</button></div>`;
+    : `<div class="ck-card ck-done"><div class="big">😋</div><h2 style="font-size:30px;margin:8px 0">Buon appetito!</h2><div class="prow" style="justify-content:center"><button class="btn pri" data-eat="${steps[0].meal.id}:pranzo">🌞 Mangiato a pranzo</button><button class="btn pri" data-eat="${steps[0].meal.id}:cena">🌙 Mangiato a cena</button></div></div>`;
   cook.innerHTML = `<div class="ck-top"><button class="x" data-close-cook aria-label="Chiudi">✕</button><div class="ck-bar">${steps.map(() => "<i></i>").join("")}<i></i></div></div>
     <div class="ck-stage"><div class="ck-strip">${steps.map((s) => `<div class="ck-card" aria-hidden="true">
       <div class="ck-rec"><span class="e">${s.r.emoji}</span><span>${esc(s.r.t)}</span></div>
@@ -816,20 +853,11 @@ document.addEventListener("click", async (e) => {
   }
   const eat = t.closest("[data-eat]");
   if (eat) { store.set(`m:${eat.dataset.eat}`, sync.me.id); buzz(20); closeCook(); checkMilestones("m:", true); return; }
-  const stp = t.closest("[data-step]");
-  if (stp) {
-    e.stopPropagation();
-    const id = stp.dataset.sid, n = Math.min(MAXP, Math.max(1, portions(id) + +stp.dataset.step));
-    if (n !== portions(id)) { store.set("n:" + id, n === 1 ? null : n); buzz(6); }
-    requestAnimationFrame(() => document.querySelectorAll(`[data-sid="${id}"]`).forEach((b) => bump(b.parentElement.querySelector(".sv b"))));
-    return;
-  }
   const gt = t.closest("[data-goto]");
   if (gt) { if (t.closest("[data-close-cook]")) closeCook(); goTo(+gt.dataset.goto); return; }
   if (t.closest("[data-close-cook]")) return closeCook();
   const tab = t.closest(".tabs [data-page]");
   if (tab) return goTo(+tab.dataset.page);
-  if (t.closest(".stepper")) return;
   const meal = t.closest("[data-meal]");
   if (meal) return mealSheet(meal.dataset.meal);
   const bts = t.closest("[data-bt-stop]");
@@ -866,8 +894,12 @@ document.addEventListener("click", async (e) => {
     toast(`${fullName(m)} rimosso dalla lista`, () => store.set("member:" + rm.dataset.rm, prev));
     return;
   }
+  const sday = t.closest("[data-sday]");
+  if (sday) { const d = +sday.dataset.sday; store.set("spesaDate", store.get("spesaDate") && dayStart(store.get("spesaDate")) === d ? null : d); buzz(8); return; }
   const act = t.closest("[data-act]")?.dataset.act;
   if (!act) return;
+  if (act === "shop-start") { startShopping(); return; }
+  if (act === "shop-end") { endShopping(true); return; }
   if (act === "edit-avatar") { saveProfileFromInputs(); return avatarSheet(houseSheet); }
   if (act === "edit-sound") { saveProfileFromInputs(); return soundSheet(houseSheet); }
   if (act === "avatar-welcome") { saveProfileFromInputs(); return avatarSheet(() => profileSheet(true)); }
@@ -878,10 +910,10 @@ document.addEventListener("click", async (e) => {
   }
   if (act === "pick-cancel" && pickState) { const back = pickState.back; pickState = null; return back ? back() : closeSheet(); }
   if (act === "share") shareList();
-  if (act === "reset-s") resetKeys(spesaKeys(), "Spesa azzerata");
+  if (act === "reset-s") resetKeys([...spesaKeys(), "spesaDate", "shopping"], "Spesa azzerata");
   if (act === "reset-p") resetKeys([...PREP.map((p) => "p:" + p.id), "prepDate"], "Preparazione azzerata");
   if (act === "reset-m") resetKeys(mealKeys(), "Pasti azzerati");
-  if (act === "reset-all") { closeSheet(); resetKeys([...spesaKeys(), ...PREP.map((p) => "p:" + p.id), "prepDate", ...mealKeys()], "Si ricomincia: nuova settimana"); goTo(0); }
+  if (act === "reset-all") { closeSheet(); resetKeys([...spesaKeys(), ...PREP.map((p) => "p:" + p.id), "prepDate", "spesaDate", "shopping", ...mealKeys()], "Si ricomincia: nuova settimana"); goTo(0); }
   if (act === "invite") invite();
   if (act === "copy-link") copyLink();
   if (act === "qr") qrSheet();
@@ -927,6 +959,7 @@ goTo(page, false);
 stagger($("#p-" + page));
 timers.init();
 sync.start();
+if (shoppingNow()?.by === sync.me.id) keepAwake(true);
 setInterval(renderHeader, 60_000);
 if (sync.joinedFromLink) setTimeout(() => { toast(`Sei entrato in ${sync.houseName() || "una nuova casa"} 🏡`); if (!sheet.classList.contains("open") && !ck) profileSheet(true); }, 1200);
 else if (!sync.me.first) setTimeout(() => { if (!sheet.classList.contains("open") && !ck) profileSheet(true); }, 900);

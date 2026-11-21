@@ -715,18 +715,21 @@ function closeCook(fromPop) {
   cook.classList.remove("open"); cook.setAttribute("aria-hidden", "true"); cook.style.transform = ""; document.body.classList.remove("cooking");
   try { wl?.release(); } catch {} wl = null; ck = null;
 }
+// Frazioni disegnate con numeri normali (i caratteri ½ ⅓ … sono minuscoli nella maggior parte dei font).
+const FRAC = { "¼": [1, 4], "½": [1, 2], "¾": [3, 4], "⅓": [1, 3], "⅔": [2, 3], "⅛": [1, 8] };
+const qty = (q) => esc(q).replace(/(\d*)\s?([¼½¾⅓⅔⅛])/g, (m, w, f) => `${w ? w + "\u2009" : ""}<span class="frac"><sup>${FRAC[f][0]}</sup>⁄<sub>${FRAC[f][1]}</sub></span>`);
 // "Ti serve": solo gli ingredienti di questo passaggio, con le quantità in grande.
 function needHTML(ing) {
   if (!ing.length) return `<div class="need none"><span>👌</span>Nessun ingrediente nuovo: segui il passaggio</div>`;
   return `<div class="need"><div class="need-h">Ti serve</div><div class="need-list">${ing.map(([q, n, note]) =>
-    `<span class="q">${esc(q)}</span><span class="nm">${esc(n)}${note ? `<small>${esc(note)}</small>` : ""}</span>`).join("")}</div></div>`;
+    `<div class="ni"><span class="q">${qty(q)}</span><span class="nm">${esc(n)}${note ? `<small>${esc(note)}</small>` : ""}</span></div>`).join("")}</div></div>`;
 }
 // Anteprima piccola del passaggio successivo (solo i suoi ingredienti).
 function nextHTML(cur, nx) {
   if (!nx) return "";
   const other = nx.r.t !== cur.r.t;
   return `<div class="next"><span class="nx-h">Prossimo passo${other ? ` · ${nx.r.emoji} ${esc(nx.r.t)}` : ""}</span>
-    <span class="nx-i">${nx.ing.length ? nx.ing.map(([q, n]) => `<span><b>${esc(q)}</b> ${esc(n)}</span>`).join("") : `<span class="nx-t">${esc(nx.text.length > 80 ? nx.text.slice(0, 78) + "…" : nx.text)}</span>`}</span></div>`;
+    <span class="nx-i">${nx.ing.length ? nx.ing.map(([q, n]) => `<span><b>${qty(q)}</b> ${esc(n)}</span>`).join("") : `<span class="nx-t">${esc(nx.text.length > 80 ? nx.text.slice(0, 78) + "…" : nx.text)}</span>`}</span></div>`;
 }
 function renderCook() {
   const { steps, kind } = ck;

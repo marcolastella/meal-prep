@@ -110,101 +110,42 @@ function shopBannerHTML() {
   const w = who(sh.by), mine = sh.by === sync.me.id;
   return `<button class="shop-banner" data-act="shop-open"><div class="sb-l"><span class="cart-ico">🛒</span><div><b>${mine ? "Spesa in corso" : `${esc(w ? w.first : "Qualcuno")} sta facendo la spesa`}</b><span>${mine ? "Tocca per riaprire la lista" : "La dispensa si aggiorna mentre compra"}</span></div></div><span class="chev">›</span></button>`;
 }
-function renderDispensa() {
-  const items = pantry(), have = items.filter((x) => store.get(x.k)), miss = items.length - have.length;
-  let h = shopBannerHTML();
-  h += `<div class="fridge-zone">
-    <button class="fridge" data-act="fridge" aria-label="Apri il frigo della dispensa">
-      <div class="fz"><span class="fz-logo">DISPENSA</span><span class="hd hd-fz"></span></div>
-      <div class="fr"><div class="door"><div class="door-front">
-        <span class="magnet m1">🥑</span><span class="magnet m2">🥕</span>
-        <span class="led"><b>${have.length}</b>/${items.length}</span>
-        <span class="tap-hint">Tocca per aprire</span><span class="hd"></span></div></div></div>
-      <span class="feet"></span>
-    </button>
-    <div class="fridge-info">
-      <b>${miss ? `${have.length} di ${items.length} in dispensa` : "Dispensa completa ✨"}</b>
-      <span>${miss ? `Mancano ${miss} ingredienti per il meal prep` : "Hai tutto per cucinare"}</span>
-      <button class="chip open-fr" data-act="fridge">🧊 Apri il frigo</button>
-    </div>
-  </div>
-  <button class="btn pri big-shop${miss ? "" : " full"}" data-act="shop-open"${miss ? "" : " disabled"}>
-    <span class="cart-ico">🛒</span><span><b>${miss ? "Vai a fare la spesa" : "Niente da comprare"}</b><small>${miss ? `${miss} prodotti che non hai in dispensa` : "La dispensa ha già tutto"}</small></span>${miss ? `<span class="badge">${miss}</span>` : ""}</button>`;
-  if (miss) h += `<div class="miss-peek"><span class="mp-h">Ti mancano</span><div class="mp-l">${items.filter((x) => !store.get(x.k)).map((x) => `<span class="mp-i" title="${esc(x.name)}">${ico(x.em)}</span>`).join("")}</div></div>`;
-  $("#p-0").innerHTML = h;
-  if (fridgeOpen) paintFridge();
-}
-
-/* ---------- Frigo a tutto schermo ---------- */
-const fv = () => $("#fridgeView");
-let fridgeOpen = false;
-function fridgeShelvesHTML() {
+// Icona della dispensa: credenza con vasetti, bottiglia e cesto di verdure.
+const PANTRY_ICON = `<svg viewBox="0 0 64 64" aria-hidden="true">
+  <rect x="5" y="4" width="54" height="56" rx="10" fill="#effaec" stroke="#16b04f" stroke-width="3"/>
+  <path d="M5 24h54M5 42h54" stroke="#16b04f" stroke-width="3"/>
+  <rect x="11" y="12" width="11" height="12" rx="3" fill="#fff" stroke="#0e8a3e" stroke-width="2"/><rect x="10" y="9" width="13" height="4.5" rx="2" fill="#16b04f"/>
+  <rect x="26" y="10" width="11" height="14" rx="3" fill="#ffd166" stroke="#d99a1b" stroke-width="2"/><rect x="25" y="7.5" width="13" height="4" rx="2" fill="#e8590c"/>
+  <path d="M45 24V15c0-2 3-3 3-5V7h4v3c0 2 3 3 3 5v9z" fill="#b6ec3c" stroke="#0e8a3e" stroke-width="2" stroke-linejoin="round"/>
+  <rect x="11" y="30" width="9" height="12" rx="2" fill="#ff7a59" stroke="#c94a2c" stroke-width="2"/><rect x="22" y="30" width="9" height="12" rx="2" fill="#ff7a59" stroke="#c94a2c" stroke-width="2"/>
+  <path d="M36 42l2-11c1-3 9-3 10 0l2 11z" fill="#f4e3c3" stroke="#b78a4a" stroke-width="2" stroke-linejoin="round"/><path d="M40 33h6" stroke="#b78a4a" stroke-width="2" stroke-linecap="round"/>
+  <path d="M12 54h40l-3-8H15z" fill="#d9a066" stroke="#9c6b35" stroke-width="2" stroke-linejoin="round"/>
+  <path d="M20 47c-1-4 2-7 5-8" stroke="#16b04f" stroke-width="3" stroke-linecap="round" fill="none"/><path d="M27 47l4-8 3 8z" fill="#ff8a3d"/><circle cx="41" cy="45" r="3.5" fill="#e63946"/>
+</svg>`;
+function shelvesHTML() {
   const items = pantry();
-  return SPESA.map((g, gi) => {
+  return SPESA.map((g) => {
     const list = items.filter((x) => x.g === g), n = list.filter((x) => store.get(x.k)).length;
-    return `<section class="fsh" style="--gi:${gi}"><div class="fsh-h"><h3>${g.emoji} ${g.name}</h3><span>${n}/${list.length}</span></div>
-      <div class="tiles">${list.map((x, j) => { const v = store.get(x.k), w = who(v);
-        return `<button class="tile${v ? " have" : ""}${justTog === x.k ? " just" : ""}" data-have="${x.k}" aria-pressed="${!!v}" style="--j:${gi * 4 + j}">
+    return `<section class="fsh"><div class="fsh-h"><h3>${g.emoji} ${g.name}</h3><span>${n}/${list.length}</span></div>
+      <div class="tiles">${list.map((x) => { const v = store.get(x.k), w = who(v);
+        return `<button class="tile${v ? " have" : ""}${justTog === x.k ? " just" : ""}" data-have="${x.k}" aria-pressed="${!!v}">
           <span class="te">${ico(x.em)}</span><span class="tn">${esc(x.name)}</span><span class="tq">${esc(x.qty)}</span>
-          ${v ? `<span class="ts">${w ? avatar(w, 20, "mini") : "✓"}</span>` : ""}</button>`; }).join("")}</div><div class="glass"></div></section>`;
+          ${v ? `<span class="ts">${w ? avatar(w, 20, "mini") : "✓"}</span>` : ""}</button>`; }).join("")}</div><div class="shelf-line"></div></section>`;
   }).join("");
 }
-function paintFridge() {
-  const el = fv(); if (!el) return;
+function renderDispensa() {
   const items = pantry(), have = items.filter((x) => store.get(x.k)).length, miss = items.length - have;
-  const c = $("#fvCount", el); if (c) c.textContent = `${have} di ${items.length} ingredienti`;
-  const sh = $("#fvShelves", el); if (sh) { const st = sh.scrollTop; sh.innerHTML = fridgeShelvesHTML(); sh.scrollTop = st; }
-  const b = $("#fvShop", el);
-  if (b) { b.disabled = !miss; b.classList.toggle("full", !miss); b.innerHTML = `<span class="cart-ico">🛒</span><span><b>${miss ? "Vai a fare la spesa" : "Hai tutto!"}</b><small>${miss ? `${miss} prodotti da comprare` : "Niente da comprare"}</small></span>${miss ? `<span class="badge">${miss}</span>` : ""}`; }
+  let h = shopBannerHTML();
+  h += `<div class="pantry-head"><span class="pantry-ico">${PANTRY_ICON}</span>
+      <div class="ph-t"><b>${miss ? "La tua dispensa" : "Dispensa completa ✨"}</b><span>${have} di ${items.length} ingredienti${miss ? ` · ne mancano ${miss}` : ""}</span>
+      <div class="ph-bar"><i style="width:${(have / items.length) * 100}%"></i></div></div></div>
+    <button class="btn pri big-shop${miss ? "" : " full"}" data-act="shop-open"${miss ? "" : " disabled"}>
+      <span class="cart-ico">🛒</span><span><b>${miss ? "Vai a fare la spesa" : "Niente da comprare"}</b><small>${miss ? `${miss} prodotti che non hai in dispensa` : "La dispensa ha già tutto"}</small></span>${miss ? `<span class="badge">${miss}</span>` : ""}</button>
+    <div class="chips pantry-chips"><button class="chip" data-act="pantry-all">✓ Ho tutto</button><button class="chip" data-act="share">↗ Condividi cosa manca</button><button class="chip" data-act="reset-s">↺ Svuota</button></div>
+    <p class="fv-hint">Tocca un ingrediente per segnare se ce l’hai</p>
+    <div class="shelves">${shelvesHTML()}</div>`;
+  $("#p-0").innerHTML = h;
 }
-function openFridge() {
-  if (fridgeOpen) return;
-  fridgeOpen = true;
-  const el = fv();
-  el.innerHTML = `<div class="fv-in">
-      <i class="fv-light"></i>
-      <div class="fv-head" id="fvHead"><div><b>🧊 La tua dispensa</b><span id="fvCount"></span></div><button class="x" data-act="fridge-close" aria-label="Chiudi il frigo">✕</button></div>
-      <div class="chips fv-chips"><button class="chip" data-act="pantry-all">✓ Ho tutto</button><button class="chip" data-act="share">↗ Condividi cosa manca</button><button class="chip" data-act="reset-s">↺ Svuota</button></div>
-      <p class="fv-hint">Tocca un ingrediente per segnare se ce l’hai</p>
-      <div class="fv-shelves" id="fvShelves"></div>
-      <div class="fv-foot"><button class="btn pri big-shop" id="fvShop" data-act="shop-open"></button></div>
-    </div>
-    <div class="fv-door l"><span class="fv-hd"></span><span class="fv-mag">🥑</span></div>
-    <div class="fv-door r"><span class="fv-hd"></span><span class="fv-led">DISPENSA</span></div>`;
-  el.classList.add("open"); el.setAttribute("aria-hidden", "false"); document.body.classList.add("cooking");
-  history.pushState({ overlay: "fridge" }, "");
-  paintFridge();
-  buzz([10, 30, 10]);
-  const reduce = matchMedia("(prefers-reduced-motion: reduce)").matches;
-  const ease = "cubic-bezier(.45,.05,.2,1)";
-  if (!reduce) {
-    el.querySelector(".fv-in").animate([{ transform: "scale(.94)", filter: "brightness(.55)" }, { transform: "none", filter: "brightness(1)" }], { duration: 900, easing: ease });
-    el.querySelector(".fv-door.l").animate([{ transform: "rotateY(0)", opacity: 1 }, { transform: "rotateY(-62deg)", opacity: 1, offset: .55 }, { transform: "rotateY(-96deg)", opacity: 0 }], { duration: 900, easing: ease, fill: "forwards" });
-    el.querySelector(".fv-door.r").animate([{ transform: "rotateY(0)", opacity: 1 }, { transform: "rotateY(62deg)", opacity: 1, offset: .55 }, { transform: "rotateY(96deg)", opacity: 0 }], { duration: 900, easing: ease, fill: "forwards" });
-    el.querySelector(".fv-light").animate([{ opacity: 0 }, { opacity: 0, offset: .3 }, { opacity: 1, offset: .4 }, { opacity: .4, offset: .45 }, { opacity: 1 }], { duration: 1000, fill: "forwards" });
-    el.querySelectorAll(".tile").forEach((t) => t.animate([{ opacity: 0, transform: "translateY(14px) scale(.85)" }, { opacity: 1, transform: "none" }], { duration: 420, delay: 450 + (+t.style.getPropertyValue("--j") || 0) * 22, easing: "cubic-bezier(.34,1.4,.64,1)", fill: "backwards" }));
-  } else el.querySelectorAll(".fv-door").forEach((d) => (d.style.opacity = 0));
-}
-function closeFridge(fromPop) {
-  if (!fridgeOpen) return;
-  if (!fromPop && history.state?.overlay === "fridge") return history.back();
-  fridgeOpen = false;
-  const el = fv(), ease = "cubic-bezier(.5,0,.3,1)";
-  const done = () => { if (fridgeOpen) return; el.classList.remove("open"); el.setAttribute("aria-hidden", "true"); el.style.transform = ""; document.body.classList.remove("cooking"); el.innerHTML = ""; };
-  if (matchMedia("(prefers-reduced-motion: reduce)").matches || !el.querySelector(".fv-door")) return done();
-  el.querySelector(".fv-door.l").animate([{ transform: "rotateY(-96deg)", opacity: 0 }, { transform: "rotateY(-50deg)", opacity: 1, offset: .35 }, { transform: "rotateY(0)", opacity: 1 }], { duration: 520, easing: ease, fill: "forwards" });
-  el.querySelector(".fv-door.r").animate([{ transform: "rotateY(96deg)", opacity: 0 }, { transform: "rotateY(50deg)", opacity: 1, offset: .35 }, { transform: "rotateY(0)", opacity: 1 }], { duration: 520, easing: ease, fill: "forwards" });
-  buzz(8);
-  setTimeout(() => el.animate([{ opacity: 1 }, { opacity: 0 }], { duration: 220, fill: "forwards" }).onfinish = () => { done(); el.getAnimations().forEach((a) => a.cancel()); }, 520);
-}
-// trascina giù dalla testata per chiudere
-(function fridgeDrag() {
-  let d = null;
-  document.addEventListener("pointerdown", (e) => { if (fridgeOpen && e.target.closest("#fvHead") && !e.target.closest("button")) d = { y0: e.clientY, dy: 0 }; });
-  document.addEventListener("pointermove", (e) => { if (!d) return; d.dy = Math.max(0, e.clientY - d.y0); fv().style.transform = `translateY(${d.dy}px)`; });
-  const end = () => { if (!d) return; const go = d.dy > 120; fv().style.transition = "transform .3s"; fv().style.transform = ""; setTimeout(() => (fv().style.transition = ""), 300); d = null; if (go) closeFridge(); };
-  document.addEventListener("pointerup", end); document.addEventListener("pointercancel", end);
-})();
 /* ---------- Pagina: Preparazione ---------- */
 function renderPrep() {
   const n = PREP.filter((p) => store.get("p:" + p.id)).length, tot = PREP.length;
@@ -288,7 +229,6 @@ async function keepAwake(on) {
 const shopEl = () => $("#shop");
 let shopOpen = false, shopList = [];
 function openShop() {
-  if (fridgeOpen) { fridgeOpen = false; const el = fv(); el.classList.remove("open"); el.setAttribute("aria-hidden", "true"); el.innerHTML = ""; history.replaceState({}, ""); }
   const items = pantry();
   // la lista parte sempre dalla dispensa: solo ciò che manca (più quello già preso in questa spesa)
   const sh = shoppingNow();
@@ -335,7 +275,7 @@ function finishShopping() {
   buzz(15);
   toast(got ? `🧺 ${got} prodott${got === 1 ? "o" : "i"} in dispensa` : "Spesa chiusa");
   if (spesaKeys().every((x) => store.get(x))) setTimeout(confetti, 300);
-  setTimeout(() => { const f = $(".fridge"); if (f) bump(f); }, 450);
+  setTimeout(() => { const f = $(".pantry-ico"); if (f) bump(f); }, 450);
 }
 document.addEventListener("visibilitychange", () => { if (!document.hidden && shopOpen) keepAwake(true); });
 
@@ -924,7 +864,6 @@ addEventListener("popstate", () => {
   const o = history.state?.overlay;
   if (o !== "scan") closeScanner(true);
   if (o !== "shop") closeShop(true);
-  if (o !== "fridge") closeFridge(true);
   if (o !== "cook") closeCook(true);
   if (o !== "sheet") closeSheet(true);
 });
@@ -1036,8 +975,6 @@ document.addEventListener("click", async (e) => {
   if (act === "shop-open") { openShop(); return; }
   if (act === "shop-close") { closeShop(); return; }
   if (act === "shop-done") { closeShop(false, true); return; }
-  if (act === "fridge") { openFridge(); return; }
-  if (act === "fridge-close") { closeFridge(); return; }
   if (act === "pantry-all") { const prev = store.setMany(Object.fromEntries(spesaKeys().filter((k) => !store.get(k)).map((k) => [k, sync.me.id]))); toast("Dispensa completa", () => store.setMany(prev)); return; }
   if (act === "edit-avatar") { saveProfileFromInputs(); return avatarSheet(houseSheet); }
   if (act === "edit-sound") { saveProfileFromInputs(); return soundSheet(houseSheet); }
@@ -1082,7 +1019,7 @@ document.addEventListener("toggle", (e) => {
 
 document.addEventListener("keydown", (e) => {
   if (e.target.closest("input,textarea")) return;
-  if (e.key === "Escape") { if (fridgeOpen) closeFridge(); else if (shopOpen) closeShop(); else if (scan.classList.contains("open")) closeScanner(); else if (ck) closeCook(); else closeSheet(); return; }
+  if (e.key === "Escape") { if (shopOpen) closeShop(); else if (scan.classList.contains("open")) closeScanner(); else if (ck) closeCook(); else closeSheet(); return; }
   if (e.key === "ArrowRight" || e.key === "ArrowLeft") {
     const d = e.key === "ArrowRight" ? 1 : -1;
     if (ck) return ckGo(ck.idx + d);

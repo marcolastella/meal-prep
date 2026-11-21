@@ -848,3 +848,28 @@ body.cooking #timers{display:none}
 }
 .tile:not(.have){box-shadow:none;border:1.5px dashed #c9dcc5;background:rgba(255,255,255,.55)}
 .tile:not(.have) .tn{color:var(--mute)}
+
+/* ===== Dispensa senza frigo: si è già dentro ===== */
+.pantry-head{display:flex;align-items:center;gap:14px;margin:4px 0 14px}
+.pantry-ico{width:64px;height:64px;flex:none;filter:drop-shadow(0 6px 12px rgba(16,120,50,.18))}
+.pantry-ico svg{width:100%;height:100%;display:block}
+.ph-t{flex:1;min-width:0;display:flex;flex-direction:column;gap:2px}
+.ph-t b{font-size:22px;letter-spacing:-.02em}
+.ph-t span{font-size:14px;color:var(--mute);font-weight:600}
+.ph-bar{height:7px;border-radius:7px;background:var(--surf2);overflow:hidden;margin-top:6px}
+.ph-bar i{display:block;height:100%;background:var(--grad);border-radius:7px;transition:width .5s cubic-bezier(.2,.9,.25,1)}
+.pantry-chips{margin-top:14px}
+.shelves{margin-top:2px}
+.shelf-line{height:8px;border-radius:4px;margin:12px -2px 0;background:linear-gradient(180deg,#e9d3b0,#d1b083);box-shadow:0 5px 8px rgba(120,80,30,.12)}
+.fsh{padding:8px 0 10px}
+.shelves .tiles{grid-template-columns:repeat(auto-fill,minmax(98px,1fr));gap:8px}
+@media (min-width: 744px){
+  .pantry-ico{width:84px;height:84px}
+  .ph-t b{font-size:30px}.ph-t span{font-size:16px}
+  .shelves .tiles{grid-template-columns:repeat(auto-fill,minmax(132px,1fr));gap:12px}
+  .fsh-h h3{font-size:22px}
+}
+@media (min-width: 1024px) and (orientation: landscape), (min-width: 1200px){
+  .shelves .tiles{grid-template-columns:repeat(auto-fill,minmax(100px,1fr))}
+  .pantry-ico{width:64px;height:64px}.ph-t b{font-size:22px}
+}

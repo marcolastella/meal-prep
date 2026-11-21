@@ -127,11 +127,16 @@ for (const r of [...PREP, ...PASTI]) {
 
 // Emoji per ogni articolo della dispensa (stesso ordine di SPESA[].items).
 const PANTRY_EMOJI = {
+  // pomodori, carote, cipolle, zucchine, avocado, limone, spinaci, prezzemolo, zenzero
   fv: ["🍅", "🥕", "🧅", "🥒", "🥑", "🍋", "🥬", "🌿", "🫚"],
-  pr: ["🧈", "🥣", "🫘"],
+  // tofu (disegnato), hummus (ciotola di crema), lenticchie (legumi)
+  pr: ["svg:tofu", "🥣", "🫘"],
+  // couscous, pasta, pane
   ce: ["🌾", "🍝", "🍞"],
-  di: ["🫑", "🫙", "🧊", "🍶", "🍾", "🌽", "🫒"],
-  sp: ["🍛", "🌱", "🧄", "🧂", "🌶️"],
+  // peperoni, pesto (vasetto verde), dadi (cubetto), soia (bottiglietta), aceto (bottiglia), amido di mais, olio di semi (girasole)
+  di: ["🫑", "svg:pesto", "svg:dado", "svg:soia", "svg:aceto", "🌽", "🌻"],
+  // curry, erbe italiane, aglio in polvere, sale e pepe, peperoncino
+  sp: ["🍛", "🍃", "🧄", "🧂", "🌶️"],
 };
 for (const g of SPESA) g.em = PANTRY_EMOJI[g.id] || g.items.map(() => g.emoji);
 

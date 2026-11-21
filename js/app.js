@@ -4,6 +4,7 @@ import { sync } from "./sync.js";
 import { timers, withTimers, stepTimer, SOUNDS, fmt } from "./timers.js";
 import { motionBlur, dragBlur, clearBlur, burst, confetti, ripple, stagger, bump } from "./fx.js";
 import qrcode from "./vendor/qrcode.mjs";
+import { ico } from "./icons.js";
 
 const $ = (s, r = document) => r.querySelector(s);
 const esc = (s) => String(s ?? "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/"/g, "&quot;");
@@ -103,7 +104,6 @@ function rowHTML(k, text, v) {
 }
 /* ---------- Pagina: Dispensa (frigo + inventario) ---------- */
 const pantry = () => SPESA.flatMap((g) => g.items.map((t, i) => ({ g, i, k: `s:${g.id}:${i}`, text: t, em: g.em[i], name: g.short[i][0], qty: g.short[i][1] })));
-let fridgeAnim = false; // la porta si anima solo quando la tocchi, non a ogni aggiornamento
 function shopBannerHTML() {
   const sh = shoppingNow();
   if (!sh || shopOpen) return "";
@@ -112,47 +112,99 @@ function shopBannerHTML() {
 }
 function renderDispensa() {
   const items = pantry(), have = items.filter((x) => store.get(x.k)), miss = items.length - have.length;
-  const open = !!prefs.get("fridgeOpen", false);
-  const shelf = (list) => list.map((x, j) => `<span class="it" style="--d:${j * 45}ms" title="${esc(x.name)}">${x.em}</span>`).join("");
-  const inside = have.slice(0, 18);
   let h = shopBannerHTML();
   h += `<div class="fridge-zone">
-    <button class="fridge${open ? " open" : ""}${fridgeAnim ? " anim" : ""}" data-act="fridge" aria-expanded="${open}" aria-label="${open ? "Chiudi" : "Apri"} la dispensa">
+    <button class="fridge" data-act="fridge" aria-label="Apri il frigo della dispensa">
       <div class="fz"><span class="fz-logo">DISPENSA</span><span class="hd hd-fz"></span></div>
-      <div class="fr">
-        <div class="inside"><i class="light"></i>
-          ${inside.length ? [0, 1, 2].map((r) => `<div class="shelf">${shelf(inside.slice(r * 6, r * 6 + 6))}</div>`).join("") : `<div class="empty-fr">Vuoto… 🦗</div>`}
-        </div>
-        <div class="door"><div class="door-front">
-          <span class="magnet m1">🥑</span><span class="magnet m2">🥕</span>
-          <span class="led"><b>${have.length}</b>/${items.length}</span>
-          <span class="tap-hint">${open ? "Tocca per chiudere" : "Tocca per aprire"}</span>
-          <span class="hd"></span></div><div class="door-back"><span>🫙</span><span>🍶</span><span>🧈</span></div></div>
-      </div>
+      <div class="fr"><div class="door"><div class="door-front">
+        <span class="magnet m1">🥑</span><span class="magnet m2">🥕</span>
+        <span class="led"><b>${have.length}</b>/${items.length}</span>
+        <span class="tap-hint">Tocca per aprire</span><span class="hd"></span></div></div></div>
       <span class="feet"></span>
     </button>
     <div class="fridge-info">
       <b>${miss ? `${have.length} di ${items.length} in dispensa` : "Dispensa completa ✨"}</b>
       <span>${miss ? `Mancano ${miss} ingredienti per il meal prep` : "Hai tutto per cucinare"}</span>
+      <button class="chip open-fr" data-act="fridge">🧊 Apri il frigo</button>
     </div>
   </div>
   <button class="btn pri big-shop${miss ? "" : " full"}" data-act="shop-open"${miss ? "" : " disabled"}>
     <span class="cart-ico">🛒</span><span><b>${miss ? "Vai a fare la spesa" : "Niente da comprare"}</b><small>${miss ? `${miss} prodotti che non hai in dispensa` : "La dispensa ha già tutto"}</small></span>${miss ? `<span class="badge">${miss}</span>` : ""}</button>`;
-  if (open) {
-    h += `<div class="inv${fridgeAnim ? " anim" : ""}"><div class="inv-head"><h3>Cosa c’è in dispensa</h3><span>Tocca per segnare cosa hai</span></div>
-      <div class="chips"><button class="chip" data-act="pantry-all">✓ Ho tutto</button><button class="chip" data-act="share">↗ Condividi cosa manca</button><button class="chip" data-act="reset-s">↺ Svuota</button></div>
-      <div class="groups">${SPESA.map((g) => {
-        const gi = items.filter((x) => x.g === g), gh = gi.filter((x) => store.get(x.k)).length;
-        return `<section class="g"><div class="grp"><h3>${g.emoji} ${g.name}</h3><span>${gh}/${gi.length}</span></div>
-          <div class="tiles">${gi.map((x) => { const v = store.get(x.k), w = who(v);
-            return `<button class="tile${v ? " have" : ""}${justTog === x.k ? " just" : ""}" data-have="${x.k}" aria-pressed="${!!v}">
-              <span class="te">${x.em}</span><span class="tn">${esc(x.name)}</span><span class="tq">${esc(x.qty)}</span>
-              <span class="ts">${v ? (w ? avatar(w, 20, "mini") : "✓") : "manca"}</span></button>`; }).join("")}</div></section>`;
-      }).join("")}</div></div>`;
-  }
+  if (miss) h += `<div class="miss-peek"><span class="mp-h">Ti mancano</span><div class="mp-l">${items.filter((x) => !store.get(x.k)).map((x) => `<span class="mp-i" title="${esc(x.name)}">${ico(x.em)}</span>`).join("")}</div></div>`;
   $("#p-0").innerHTML = h;
-  fridgeAnim = false;
+  if (fridgeOpen) paintFridge();
 }
+
+/* ---------- Frigo a tutto schermo ---------- */
+const fv = () => $("#fridgeView");
+let fridgeOpen = false;
+function fridgeShelvesHTML() {
+  const items = pantry();
+  return SPESA.map((g, gi) => {
+    const list = items.filter((x) => x.g === g), n = list.filter((x) => store.get(x.k)).length;
+    return `<section class="fsh" style="--gi:${gi}"><div class="fsh-h"><h3>${g.emoji} ${g.name}</h3><span>${n}/${list.length}</span></div>
+      <div class="tiles">${list.map((x, j) => { const v = store.get(x.k), w = who(v);
+        return `<button class="tile${v ? " have" : ""}${justTog === x.k ? " just" : ""}" data-have="${x.k}" aria-pressed="${!!v}" style="--j:${gi * 4 + j}">
+          <span class="te">${ico(x.em)}</span><span class="tn">${esc(x.name)}</span><span class="tq">${esc(x.qty)}</span>
+          ${v ? `<span class="ts">${w ? avatar(w, 20, "mini") : "✓"}</span>` : ""}</button>`; }).join("")}</div><div class="glass"></div></section>`;
+  }).join("");
+}
+function paintFridge() {
+  const el = fv(); if (!el) return;
+  const items = pantry(), have = items.filter((x) => store.get(x.k)).length, miss = items.length - have;
+  const c = $("#fvCount", el); if (c) c.textContent = `${have} di ${items.length} ingredienti`;
+  const sh = $("#fvShelves", el); if (sh) { const st = sh.scrollTop; sh.innerHTML = fridgeShelvesHTML(); sh.scrollTop = st; }
+  const b = $("#fvShop", el);
+  if (b) { b.disabled = !miss; b.classList.toggle("full", !miss); b.innerHTML = `<span class="cart-ico">🛒</span><span><b>${miss ? "Vai a fare la spesa" : "Hai tutto!"}</b><small>${miss ? `${miss} prodotti da comprare` : "Niente da comprare"}</small></span>${miss ? `<span class="badge">${miss}</span>` : ""}`; }
+}
+function openFridge() {
+  if (fridgeOpen) return;
+  fridgeOpen = true;
+  const el = fv();
+  el.innerHTML = `<div class="fv-in">
+      <i class="fv-light"></i>
+      <div class="fv-head" id="fvHead"><div><b>🧊 La tua dispensa</b><span id="fvCount"></span></div><button class="x" data-act="fridge-close" aria-label="Chiudi il frigo">✕</button></div>
+      <div class="chips fv-chips"><button class="chip" data-act="pantry-all">✓ Ho tutto</button><button class="chip" data-act="share">↗ Condividi cosa manca</button><button class="chip" data-act="reset-s">↺ Svuota</button></div>
+      <p class="fv-hint">Tocca un ingrediente per segnare se ce l’hai</p>
+      <div class="fv-shelves" id="fvShelves"></div>
+      <div class="fv-foot"><button class="btn pri big-shop" id="fvShop" data-act="shop-open"></button></div>
+    </div>
+    <div class="fv-door l"><span class="fv-hd"></span><span class="fv-mag">🥑</span></div>
+    <div class="fv-door r"><span class="fv-hd"></span><span class="fv-led">DISPENSA</span></div>`;
+  el.classList.add("open"); el.setAttribute("aria-hidden", "false"); document.body.classList.add("cooking");
+  history.pushState({ overlay: "fridge" }, "");
+  paintFridge();
+  buzz([10, 30, 10]);
+  const reduce = matchMedia("(prefers-reduced-motion: reduce)").matches;
+  const ease = "cubic-bezier(.45,.05,.2,1)";
+  if (!reduce) {
+    el.querySelector(".fv-in").animate([{ transform: "scale(.94)", filter: "brightness(.55)" }, { transform: "none", filter: "brightness(1)" }], { duration: 900, easing: ease });
+    el.querySelector(".fv-door.l").animate([{ transform: "rotateY(0)", opacity: 1 }, { transform: "rotateY(-62deg)", opacity: 1, offset: .55 }, { transform: "rotateY(-96deg)", opacity: 0 }], { duration: 900, easing: ease, fill: "forwards" });
+    el.querySelector(".fv-door.r").animate([{ transform: "rotateY(0)", opacity: 1 }, { transform: "rotateY(62deg)", opacity: 1, offset: .55 }, { transform: "rotateY(96deg)", opacity: 0 }], { duration: 900, easing: ease, fill: "forwards" });
+    el.querySelector(".fv-light").animate([{ opacity: 0 }, { opacity: 0, offset: .3 }, { opacity: 1, offset: .4 }, { opacity: .4, offset: .45 }, { opacity: 1 }], { duration: 1000, fill: "forwards" });
+    el.querySelectorAll(".tile").forEach((t) => t.animate([{ opacity: 0, transform: "translateY(14px) scale(.85)" }, { opacity: 1, transform: "none" }], { duration: 420, delay: 450 + (+t.style.getPropertyValue("--j") || 0) * 22, easing: "cubic-bezier(.34,1.4,.64,1)", fill: "backwards" }));
+  } else el.querySelectorAll(".fv-door").forEach((d) => (d.style.opacity = 0));
+}
+function closeFridge(fromPop) {
+  if (!fridgeOpen) return;
+  if (!fromPop && history.state?.overlay === "fridge") return history.back();
+  fridgeOpen = false;
+  const el = fv(), ease = "cubic-bezier(.5,0,.3,1)";
+  const done = () => { if (fridgeOpen) return; el.classList.remove("open"); el.setAttribute("aria-hidden", "true"); el.style.transform = ""; document.body.classList.remove("cooking"); el.innerHTML = ""; };
+  if (matchMedia("(prefers-reduced-motion: reduce)").matches || !el.querySelector(".fv-door")) return done();
+  el.querySelector(".fv-door.l").animate([{ transform: "rotateY(-96deg)", opacity: 0 }, { transform: "rotateY(-50deg)", opacity: 1, offset: .35 }, { transform: "rotateY(0)", opacity: 1 }], { duration: 520, easing: ease, fill: "forwards" });
+  el.querySelector(".fv-door.r").animate([{ transform: "rotateY(96deg)", opacity: 0 }, { transform: "rotateY(50deg)", opacity: 1, offset: .35 }, { transform: "rotateY(0)", opacity: 1 }], { duration: 520, easing: ease, fill: "forwards" });
+  buzz(8);
+  setTimeout(() => el.animate([{ opacity: 1 }, { opacity: 0 }], { duration: 220, fill: "forwards" }).onfinish = () => { done(); el.getAnimations().forEach((a) => a.cancel()); }, 520);
+}
+// trascina giù dalla testata per chiudere
+(function fridgeDrag() {
+  let d = null;
+  document.addEventListener("pointerdown", (e) => { if (fridgeOpen && e.target.closest("#fvHead") && !e.target.closest("button")) d = { y0: e.clientY, dy: 0 }; });
+  document.addEventListener("pointermove", (e) => { if (!d) return; d.dy = Math.max(0, e.clientY - d.y0); fv().style.transform = `translateY(${d.dy}px)`; });
+  const end = () => { if (!d) return; const go = d.dy > 120; fv().style.transition = "transform .3s"; fv().style.transform = ""; setTimeout(() => (fv().style.transition = ""), 300); d = null; if (go) closeFridge(); };
+  document.addEventListener("pointerup", end); document.addEventListener("pointercancel", end);
+})();
 /* ---------- Pagina: Preparazione ---------- */
 function renderPrep() {
   const n = PREP.filter((p) => store.get("p:" + p.id)).length, tot = PREP.length;
@@ -236,6 +288,7 @@ async function keepAwake(on) {
 const shopEl = () => $("#shop");
 let shopOpen = false, shopList = [];
 function openShop() {
+  if (fridgeOpen) { fridgeOpen = false; const el = fv(); el.classList.remove("open"); el.setAttribute("aria-hidden", "true"); el.innerHTML = ""; history.replaceState({}, ""); }
   const items = pantry();
   // la lista parte sempre dalla dispensa: solo ciò che manca (più quello già preso in questa spesa)
   const sh = shoppingNow();
@@ -249,7 +302,7 @@ function openShop() {
       <div class="st-t"><b>🛒 Spesa</b><span id="shopCount"></span></div><span class="st-pct" id="shopPct"></span></div>
     <div class="shop-bar"><i id="shopBar"></i></div>
     <div class="shop-list">${byG.map(([g, l]) => `<section class="sg"><div class="grp"><h3>${g.emoji} ${g.name}</h3><span data-gc="${g.id}"></span></div>
-      <div class="list">${l.map((x) => `<button class="srow" data-buy="${x.k}"><span class="box">${CHECK}</span><span class="se">${x.em}</span><span class="sl"><b>${esc(x.name)}</b><small>${esc(x.text)}</small></span></button>`).join("")}</div></section>`).join("")}
+      <div class="list">${l.map((x) => `<button class="srow" data-buy="${x.k}"><span class="box">${CHECK}</span><span class="se">${ico(x.em)}</span><span class="sl"><b>${esc(x.name)}</b><small>${esc(x.text)}</small></span></button>`).join("")}</div></section>`).join("")}
       <p class="note" style="text-align:center;margin:18px 0 0">Quello che spunti entra da solo in dispensa 🧺</p></div>
     <div class="ck-nav"><button class="btn pri block" data-act="shop-done">✓ Fine spesa</button></div>`;
   el.classList.add("open"); el.setAttribute("aria-hidden", "false"); document.body.classList.add("cooking");
@@ -726,7 +779,7 @@ function closeCook(fromPop) {
 function needHTML(ing) {
   if (!ing.length) return `<div class="need none"><span>👌</span>Nessun ingrediente nuovo: segui il passaggio</div>`;
   return `<div class="need"><div class="need-h">Ti serve</div><div class="need-list">${ing.map(([q, n, note]) =>
-    `<div class="ni"><b class="q">${esc(q)}</b><span class="nm">${esc(n)}${note ? `<small>${esc(note)}</small>` : ""}</span></div>`).join("")}</div></div>`;
+    `<span class="q">${esc(q)}</span><span class="nm">${esc(n)}${note ? `<small>${esc(note)}</small>` : ""}</span>`).join("")}</div></div>`;
 }
 // Anteprima piccola del passaggio successivo (solo i suoi ingredienti).
 function nextHTML(cur, nx) {
@@ -744,7 +797,7 @@ function renderCook() {
     <div class="ck-stage"><div class="ck-strip">${steps.map((s, j) => `<div class="ck-card" aria-hidden="true">
       <div class="ck-rec"><span class="e">${s.r.emoji}</span><span>${esc(s.r.t)}</span></div>
       <div class="ck-n">Passaggio ${s.i + 1} di ${s.n}</div>
-      <p class="ck-txt">${esc(s.text)}</p>
+      <p class="ck-txt">${s.text.split(/(?<=[.!?])\s+/).map((f) => `<span>${esc(f)}</span>`).join("")}</p>
       ${needHTML(s.ing)}
       ${nextHTML(s, steps[j + 1])}
       </div>`).join("")}${last}</div></div>
@@ -871,6 +924,7 @@ addEventListener("popstate", () => {
   const o = history.state?.overlay;
   if (o !== "scan") closeScanner(true);
   if (o !== "shop") closeShop(true);
+  if (o !== "fridge") closeFridge(true);
   if (o !== "cook") closeCook(true);
   if (o !== "sheet") closeSheet(true);
 });
@@ -982,7 +1036,8 @@ document.addEventListener("click", async (e) => {
   if (act === "shop-open") { openShop(); return; }
   if (act === "shop-close") { closeShop(); return; }
   if (act === "shop-done") { closeShop(false, true); return; }
-  if (act === "fridge") { prefs.set("fridgeOpen", !prefs.get("fridgeOpen", false)); fridgeAnim = true; buzz(prefs.get("fridgeOpen") ? [10, 30, 10] : 8); renderDispensa(); return; }
+  if (act === "fridge") { openFridge(); return; }
+  if (act === "fridge-close") { closeFridge(); return; }
   if (act === "pantry-all") { const prev = store.setMany(Object.fromEntries(spesaKeys().filter((k) => !store.get(k)).map((k) => [k, sync.me.id]))); toast("Dispensa completa", () => store.setMany(prev)); return; }
   if (act === "edit-avatar") { saveProfileFromInputs(); return avatarSheet(houseSheet); }
   if (act === "edit-sound") { saveProfileFromInputs(); return soundSheet(houseSheet); }
@@ -1027,7 +1082,7 @@ document.addEventListener("toggle", (e) => {
 
 document.addEventListener("keydown", (e) => {
   if (e.target.closest("input,textarea")) return;
-  if (e.key === "Escape") { if (shopOpen) closeShop(); else if (scan.classList.contains("open")) closeScanner(); else if (ck) closeCook(); else closeSheet(); return; }
+  if (e.key === "Escape") { if (fridgeOpen) closeFridge(); else if (shopOpen) closeShop(); else if (scan.classList.contains("open")) closeScanner(); else if (ck) closeCook(); else closeSheet(); return; }
   if (e.key === "ArrowRight" || e.key === "ArrowLeft") {
     const d = e.key === "ArrowRight" ? 1 : -1;
     if (ck) return ckGo(ck.idx + d);

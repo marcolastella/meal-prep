@@ -79,9 +79,8 @@ function renderHeader() {
     const day = new Date(pd).toLocaleDateString("it-IT", { weekday: "long" });
     left.innerHTML = days > 1 ? `Preparato ${day} · <b>ancora ${days} giorni</b>` : days === 1 ? `Preparato ${day} · <b>ultimo giorno</b>` : `Preparato ${day} · <b>da consumare subito</b>`;
   } else {
-    const s = spesaKeys(), n = s.length - count(s), sd = store.get("spesaDate");
-    const pre = sd ? `Spesa di ${dayLabel(sd)}` : PLAN.subtitle;
-    left.innerHTML = shoppingNow() ? `🛒 <b>Spesa in corso</b> · ${n} da prendere` : n ? `${pre} · <b>${n} da comprare</b>` : `${pre} · <b>pronto a cucinare</b>`;
+    const s = spesaKeys(), n = s.length - count(s);
+    left.innerHTML = shoppingNow() ? `🛒 <b>Spesa in corso</b>` : n ? `${PLAN.subtitle} · <b>${n} mancano in dispensa</b>` : `Dispensa completa · <b>pronto a cucinare</b>`;
   }
   const hn = sync.houseName();
   $("#house").textContent = hn ? "🏡 " + hn : "🏡 La mia casa";
@@ -102,39 +101,58 @@ function rowHTML(k, text, v) {
   return `<div class="row${checked ? " checked" : ""}${justChecked === k ? " just" : ""}" data-k="${k}"><div class="bgl">${checked ? "↺ Rimetti in lista" : "✓ Preso"}</div>
     <div class="fg" role="checkbox" aria-checked="${checked}" tabindex="0"><span class="box">${CHECK}</span><span class="lbl">${esc(text)}</span>${checked && w ? avatar(w, 24, "mini") : ""}</div></div>`;
 }
-function spesaDayHTML() {
-  const sd = store.get("spesaDate"), sh = shoppingNow();
-  if (sh) {
-    const w = who(sh.by), mine = sh.by === sync.me.id;
-    return `<div class="shop-banner"><div class="sb-l"><span class="cart-ico">🛒</span><div><b>${mine ? "Stai facendo la spesa" : `${esc(w ? w.first : "Qualcuno")} sta facendo la spesa`}</b><span>Spesa di ${esc(dayLabel(sh.at, true))} · lo schermo resta acceso</span></div></div>
-      <button class="btn light" data-act="shop-end">Fine spesa</button></div>`;
-  }
-  const days = [...Array(7)].map((_, i) => dayStart(Date.now()) - i * DAY);
-  return `<div class="spesa-day">
-    <button class="btn pri big-shop" data-act="shop-start"><span class="cart-ico">🛒</span><span><b>Fai la spesa</b><small>Imposta oggi come giorno della spesa</small></span></button>
-    <div class="sd-row"><span class="sd-l">${sd ? `Spesa di <b>${esc(dayLabel(sd, true))}</b>` : "Oppure scegli quando l’hai fatta:"}</span></div>
-    <div class="chips day-chips">${days.map((d) => `<button class="chip${sd && dayStart(sd) === d ? " on" : ""}" data-sday="${d}">${esc(dayLabel(d))}</button>`).join("")}</div></div>`;
+/* ---------- Pagina: Dispensa (frigo + inventario) ---------- */
+const pantry = () => SPESA.flatMap((g) => g.items.map((t, i) => ({ g, i, k: `s:${g.id}:${i}`, text: t, em: g.em[i], name: g.short[i][0], qty: g.short[i][1] })));
+let fridgeAnim = false; // la porta si anima solo quando la tocchi, non a ogni aggiornamento
+function shopBannerHTML() {
+  const sh = shoppingNow();
+  if (!sh || shopOpen) return "";
+  const w = who(sh.by), mine = sh.by === sync.me.id;
+  return `<button class="shop-banner" data-act="shop-open"><div class="sb-l"><span class="cart-ico">🛒</span><div><b>${mine ? "Spesa in corso" : `${esc(w ? w.first : "Qualcuno")} sta facendo la spesa`}</b><span>${mine ? "Tocca per riaprire la lista" : "La dispensa si aggiorna mentre compra"}</span></div></div><span class="chev">›</span></button>`;
 }
-function renderSpesa() {
-  const keys = spesaKeys(), n = count(keys), tot = keys.length;
-  let h = spesaDayHTML() + `<div class="prog">${ring(n, tot, n === tot ? "Spesa completata" : "Lista della spesa")}<span>${n} di ${tot} nel carrello</span></div></div>`;
-  h += `<div class="chips"><button class="chip" data-act="share">↗ Condividi lista</button><button class="chip" data-act="reset-s">↺ Azzera</button></div>`;
-  let any = false;
-  h += `<div class="groups">`;
-  for (const g of SPESA) {
-    const todo = g.items.map((t, i) => [t, `s:${g.id}:${i}`]).filter(([, k]) => !store.get(k));
-    if (!todo.length) continue;
-    any = true;
-    h += `<section class="g"><div class="grp"><h3>${g.emoji} ${g.name}</h3><span>${g.items.length - todo.length}/${g.items.length}</span></div><div class="list">${todo.map(([t, k]) => rowHTML(k, t, null)).join("")}</div></section>`;
+function renderDispensa() {
+  const items = pantry(), have = items.filter((x) => store.get(x.k)), miss = items.length - have.length;
+  const open = !!prefs.get("fridgeOpen", false);
+  const shelf = (list) => list.map((x, j) => `<span class="it" style="--d:${j * 45}ms" title="${esc(x.name)}">${x.em}</span>`).join("");
+  const inside = have.slice(0, 18);
+  let h = shopBannerHTML();
+  h += `<div class="fridge-zone">
+    <button class="fridge${open ? " open" : ""}${fridgeAnim ? " anim" : ""}" data-act="fridge" aria-expanded="${open}" aria-label="${open ? "Chiudi" : "Apri"} la dispensa">
+      <div class="fz"><span class="fz-logo">DISPENSA</span><span class="hd hd-fz"></span></div>
+      <div class="fr">
+        <div class="inside"><i class="light"></i>
+          ${inside.length ? [0, 1, 2].map((r) => `<div class="shelf">${shelf(inside.slice(r * 6, r * 6 + 6))}</div>`).join("") : `<div class="empty-fr">Vuoto… 🦗</div>`}
+        </div>
+        <div class="door"><div class="door-front">
+          <span class="magnet m1">🥑</span><span class="magnet m2">🥕</span>
+          <span class="led"><b>${have.length}</b>/${items.length}</span>
+          <span class="tap-hint">${open ? "Tocca per chiudere" : "Tocca per aprire"}</span>
+          <span class="hd"></span></div><div class="door-back"><span>🫙</span><span>🍶</span><span>🧈</span></div></div>
+      </div>
+      <span class="feet"></span>
+    </button>
+    <div class="fridge-info">
+      <b>${miss ? `${have.length} di ${items.length} in dispensa` : "Dispensa completa ✨"}</b>
+      <span>${miss ? `Mancano ${miss} ingredienti per il meal prep` : "Hai tutto per cucinare"}</span>
+    </div>
+  </div>
+  <button class="btn pri big-shop${miss ? "" : " full"}" data-act="shop-open"${miss ? "" : " disabled"}>
+    <span class="cart-ico">🛒</span><span><b>${miss ? "Vai a fare la spesa" : "Niente da comprare"}</b><small>${miss ? `${miss} prodotti che non hai in dispensa` : "La dispensa ha già tutto"}</small></span>${miss ? `<span class="badge">${miss}</span>` : ""}</button>`;
+  if (open) {
+    h += `<div class="inv${fridgeAnim ? " anim" : ""}"><div class="inv-head"><h3>Cosa c’è in dispensa</h3><span>Tocca per segnare cosa hai</span></div>
+      <div class="chips"><button class="chip" data-act="pantry-all">✓ Ho tutto</button><button class="chip" data-act="share">↗ Condividi cosa manca</button><button class="chip" data-act="reset-s">↺ Svuota</button></div>
+      <div class="groups">${SPESA.map((g) => {
+        const gi = items.filter((x) => x.g === g), gh = gi.filter((x) => store.get(x.k)).length;
+        return `<section class="g"><div class="grp"><h3>${g.emoji} ${g.name}</h3><span>${gh}/${gi.length}</span></div>
+          <div class="tiles">${gi.map((x) => { const v = store.get(x.k), w = who(v);
+            return `<button class="tile${v ? " have" : ""}${justTog === x.k ? " just" : ""}" data-have="${x.k}" aria-pressed="${!!v}">
+              <span class="te">${x.em}</span><span class="tn">${esc(x.name)}</span><span class="tq">${esc(x.qty)}</span>
+              <span class="ts">${v ? (w ? avatar(w, 20, "mini") : "✓") : "manca"}</span></button>`; }).join("")}</div></section>`;
+      }).join("")}</div></div>`;
   }
-  h += `</div>`;
-  if (!any) h += `<div class="empty"><span class="big">🛒</span>Tutto nel carrello! Scorri a sinistra per iniziare a cucinare.</div>`;
-  const done = SPESA.flatMap((g) => g.items.map((t, i) => [t, `s:${g.id}:${i}`])).filter(([, k]) => store.get(k));
-  if (done.length) h += `<details class="cart" data-open="cart"${openState.cart ? " open" : ""}><summary>Nel carrello (${done.length})</summary><div class="list">${done.map(([t, k]) => rowHTML(k, t, store.get(k))).join("")}</div></details>`;
-  if (!prefs.get("swiped")) h += `<p class="hint-swipe">Scorri un articolo verso destra per spuntarlo · scorri lo schermo per cambiare sezione</p>`;
   $("#p-0").innerHTML = h;
+  fridgeAnim = false;
 }
-
 /* ---------- Pagina: Preparazione ---------- */
 function renderPrep() {
   const n = PREP.filter((p) => store.get("p:" + p.id)).length, tot = PREP.length;
@@ -200,7 +218,7 @@ function renderTabs() {
 }
 
 function renderAll() {
-  renderSpesa(); renderPrep(); renderPasti(); renderTabs(); renderHeader();
+  renderDispensa(); if (shopOpen) paintShop(); renderPrep(); renderPasti(); renderTabs(); renderHeader();
   justChecked = null; justTog = null;
   if (sheet.classList.contains("open") && sheetRender && canRerenderSheet()) sheetRender();
 }
@@ -215,18 +233,58 @@ async function keepAwake(on) {
     if (!on && shopLock) { await shopLock.release(); shopLock = null; }
   } catch {}
 }
-function startShopping() {
-  const today = dayStart(Date.now());
-  store.setMany({ spesaDate: today, shopping: { by: sync.me.id, at: Date.now() } });
-  buzz([15, 40, 15]); goTo(0); keepAwake(true);
-  toast("🛒 Buona spesa! Spunta gli articoli man mano");
+const shopEl = () => $("#shop");
+let shopOpen = false, shopList = [];
+function openShop() {
+  const items = pantry();
+  // la lista parte sempre dalla dispensa: solo ciò che manca (più quello già preso in questa spesa)
+  const sh = shoppingNow();
+  if (!sh || !shopList.length) shopList = items.filter((x) => !store.get(x.k)).map((x) => x.k);
+  if (!shopList.length) { toast("✨ La dispensa ha già tutto"); return; }
+  if (!sh || sh.by !== sync.me.id) store.set("shopping", { by: sync.me.id, at: Date.now() });
+  shopOpen = true; keepAwake(true); buzz([15, 40, 15]);
+  const el = shopEl();
+  const byG = SPESA.map((g) => [g, items.filter((x) => x.g === g && shopList.includes(x.k))]).filter(([, l]) => l.length);
+  el.innerHTML = `<div class="ck-top shop-top"><button class="x" data-act="shop-close" aria-label="Chiudi">✕</button>
+      <div class="st-t"><b>🛒 Spesa</b><span id="shopCount"></span></div><span class="st-pct" id="shopPct"></span></div>
+    <div class="shop-bar"><i id="shopBar"></i></div>
+    <div class="shop-list">${byG.map(([g, l]) => `<section class="sg"><div class="grp"><h3>${g.emoji} ${g.name}</h3><span data-gc="${g.id}"></span></div>
+      <div class="list">${l.map((x) => `<button class="srow" data-buy="${x.k}"><span class="box">${CHECK}</span><span class="se">${x.em}</span><span class="sl"><b>${esc(x.name)}</b><small>${esc(x.text)}</small></span></button>`).join("")}</div></section>`).join("")}
+      <p class="note" style="text-align:center;margin:18px 0 0">Quello che spunti entra da solo in dispensa 🧺</p></div>
+    <div class="ck-nav"><button class="btn pri block" data-act="shop-done">✓ Fine spesa</button></div>`;
+  el.classList.add("open"); el.setAttribute("aria-hidden", "false"); document.body.classList.add("cooking");
+  history.pushState({ overlay: "shop" }, "");
+  paintShop();
+  [...el.querySelectorAll(".sg")].forEach((c, i) => c.animate([{ opacity: 0, transform: "translateY(18px)" }, { opacity: 1, transform: "none" }], { duration: 420, delay: 80 + i * 60, easing: "cubic-bezier(.2,.9,.25,1)", fill: "backwards" }));
+  renderDispensa();
 }
-function endShopping(manual) {
-  if (!store.get("shopping")) return;
-  store.set("shopping", null); keepAwake(false);
-  if (manual) { buzz(12); toast("Spesa terminata"); }
+function paintShop() {
+  const el = shopEl(); if (!el) return;
+  let got = 0;
+  el.querySelectorAll("[data-buy]").forEach((b) => { const on = !!store.get(b.dataset.buy); b.classList.toggle("on", on); if (on) got++; });
+  SPESA.forEach((g) => { const c = el.querySelector(`[data-gc="${g.id}"]`); if (!c) return; const l = shopList.filter((k) => k.startsWith(`s:${g.id}:`)); c.textContent = `${l.filter((k) => store.get(k)).length}/${l.length}`; });
+  const tot = shopList.length;
+  const cEl = $("#shopCount"); if (cEl) cEl.textContent = `${got} di ${tot} nel carrello`;
+  const pEl = $("#shopPct"); if (pEl) pEl.textContent = `${Math.round((got / Math.max(1, tot)) * 100)}%`;
+  const bar = $("#shopBar"); if (bar) bar.style.width = `${(got / Math.max(1, tot)) * 100}%`;
 }
-document.addEventListener("visibilitychange", () => { if (!document.hidden && store.get("shopping")?.by === sync.me.id) keepAwake(true); });
+function closeShop(fromPop, finish) {
+  if (!shopOpen) return;
+  if (!fromPop && history.state?.overlay === "shop") { history.back(); if (finish) finishShopping(); return; }
+  shopOpen = false;
+  const el = shopEl(); el.classList.remove("open"); el.setAttribute("aria-hidden", "true"); document.body.classList.remove("cooking");
+  setTimeout(() => { if (!shopOpen) el.innerHTML = ""; }, 400);
+  renderDispensa();
+}
+function finishShopping() {
+  const got = shopList.filter((k) => store.get(k)).length;
+  store.set("shopping", null); keepAwake(false); shopList = [];
+  buzz(15);
+  toast(got ? `🧺 ${got} prodott${got === 1 ? "o" : "i"} in dispensa` : "Spesa chiusa");
+  if (spesaKeys().every((x) => store.get(x))) setTimeout(confetti, 300);
+  setTimeout(() => { const f = $(".fridge"); if (f) bump(f); }, 450);
+}
+document.addEventListener("visibilitychange", () => { if (!document.hidden && shopOpen) keepAwake(true); });
 
 /* ---------- Traguardi ---------- */
 function checkPrepDate() {
@@ -237,7 +295,7 @@ function checkPrepDate() {
 }
 function checkMilestones(k, v) {
   if (!v) return;
-  if (k.startsWith("s:") && spesaKeys().every((x) => store.get(x))) { setTimeout(confetti, 250); toast("🛒 Spesa completata!"); if (store.get("shopping")) endShopping(false); }
+  if (k.startsWith("s:") && spesaKeys().every((x) => store.get(x)) && !shopOpen) { setTimeout(confetti, 250); toast("🧺 Dispensa completa!"); }
   if (k.startsWith("m:") && mealKeys().every((x) => store.get(x))) { setTimeout(confetti, 250); toast("🎉 Settimana completata! Pronto per un nuovo meal prep?"); }
 }
 
@@ -313,7 +371,7 @@ function endGesture(cancel) {
     clearBlur(strip);
     let next = page;
     if (!cancel) { if (dx < -W * 0.2 || v < -0.45) next++; else if (dx > W * 0.2 || v > 0.45) next--; }
-    if (next !== page && !prefs.get("swiped")) { prefs.set("swiped", true); setTimeout(renderSpesa, 450); }
+    if (next !== page && !prefs.get("swiped")) { prefs.set("swiped", true); setTimeout(renderDispensa, 450); }
     goTo(next);
   } else if (mode === "row") {
     const fg = row.querySelector(".fg");
@@ -640,9 +698,9 @@ function closeScanner(fromPop) {
 const cook = $("#cook");
 let ck = null, wl = null;
 function cookSteps(kind) {
-  if (kind === "prep") return PREP.flatMap((r, ri) => r.s.map((text, i) => ({ r, ri, i, n: r.s.length, text, key: "p:" + r.id })));
+  if (kind === "prep") return PREP.flatMap((r, ri) => r.s.map((text, i) => ({ r, ri, i, n: r.s.length, text, ing: r.si[i] || [], key: "p:" + r.id })));
   const m = PASTI.find((x) => "meal:" + x.id === kind);
-  return m.s.map((text, i) => ({ r: { ...m, t: m.short, i: ingr(m) }, i, n: m.s.length, text, meal: m }));
+  return m.s.map((text, i) => ({ r: { ...m, t: m.short, i: ingr(m) }, i, n: m.s.length, text, ing: m.si[i] || [], meal: m }));
 }
 function openCook(kind, from) {
   const steps = cookSteps(kind);
@@ -664,17 +722,31 @@ function closeCook(fromPop) {
   cook.classList.remove("open"); cook.setAttribute("aria-hidden", "true"); cook.style.transform = ""; document.body.classList.remove("cooking");
   try { wl?.release(); } catch {} wl = null; ck = null;
 }
+// "Ti serve": solo gli ingredienti di questo passaggio, con le quantità in grande.
+function needHTML(ing) {
+  if (!ing.length) return `<div class="need none"><span>👌</span>Nessun ingrediente nuovo: segui il passaggio</div>`;
+  return `<div class="need"><div class="need-h">Ti serve</div><div class="need-list">${ing.map(([q, n, note]) =>
+    `<div class="ni"><b class="q">${esc(q)}</b><span class="nm">${esc(n)}${note ? `<small>${esc(note)}</small>` : ""}</span></div>`).join("")}</div></div>`;
+}
+// Anteprima piccola del passaggio successivo (solo i suoi ingredienti).
+function nextHTML(cur, nx) {
+  if (!nx) return "";
+  const other = nx.r.t !== cur.r.t;
+  return `<div class="next"><span class="nx-h">Prossimo passo${other ? ` · ${nx.r.emoji} ${esc(nx.r.t)}` : ""}</span>
+    <span class="nx-i">${nx.ing.length ? nx.ing.map(([q, n]) => `<span><b>${esc(q)}</b> ${esc(n)}</span>`).join("") : `<span class="nx-t">${esc(nx.text.length > 80 ? nx.text.slice(0, 78) + "…" : nx.text)}</span>`}</span></div>`;
+}
 function renderCook() {
   const { steps, kind } = ck;
   const last = kind === "prep"
     ? `<div class="ck-card ck-done"><div class="big">🎉</div><h2 style="font-size:30px;margin:8px 0">Tutto pronto!</h2><p class="note">Dieci pasti in frigo per ${PLAN.fridgeDays} giorni.</p><button class="btn pri" data-goto="2" data-close-cook>Vai ai pasti →</button></div>`
     : `<div class="ck-card ck-done"><div class="big">😋</div><h2 style="font-size:30px;margin:8px 0">Buon appetito!</h2><div class="prow" style="justify-content:center"><button class="btn pri" data-eat="${steps[0].meal.id}:pranzo">🌞 Mangiato a pranzo</button><button class="btn pri" data-eat="${steps[0].meal.id}:cena">🌙 Mangiato a cena</button></div></div>`;
   cook.innerHTML = `<div class="ck-top"><button class="x" data-close-cook aria-label="Chiudi">✕</button><div class="ck-bar">${steps.map(() => "<i></i>").join("")}<i></i></div></div>
-    <div class="ck-stage"><div class="ck-strip">${steps.map((s) => `<div class="ck-card" aria-hidden="true">
+    <div class="ck-stage"><div class="ck-strip">${steps.map((s, j) => `<div class="ck-card" aria-hidden="true">
       <div class="ck-rec"><span class="e">${s.r.emoji}</span><span>${esc(s.r.t)}</span></div>
       <div class="ck-n">Passaggio ${s.i + 1} di ${s.n}</div>
       <p class="ck-txt">${esc(s.text)}</p>
-      <div class="ck-ing"><div class="ck-ing-h">🧺 Ingredienti</div><ul class="ing">${s.r.i.map((x) => `<li>${esc(x)}</li>`).join("")}</ul></div>
+      ${needHTML(s.ing)}
+      ${nextHTML(s, steps[j + 1])}
       </div>`).join("")}${last}</div></div>
     <div class="ck-timer" id="ckTimer" hidden></div>
     <div class="ck-nav"><button class="btn ghost back" data-ck="-1" aria-label="Passaggio precedente">←</button><button class="btn pri" data-ck="1" id="ckNext">Avanti →</button></div>`;
@@ -798,6 +870,7 @@ function ckGo(i, anim = true) {
 addEventListener("popstate", () => {
   const o = history.state?.overlay;
   if (o !== "scan") closeScanner(true);
+  if (o !== "shop") closeShop(true);
   if (o !== "cook") closeCook(true);
   if (o !== "sheet") closeSheet(true);
 });
@@ -894,12 +967,23 @@ document.addEventListener("click", async (e) => {
     toast(`${fullName(m)} rimosso dalla lista`, () => store.set("member:" + rm.dataset.rm, prev));
     return;
   }
-  const sday = t.closest("[data-sday]");
-  if (sday) { const d = +sday.dataset.sday; store.set("spesaDate", store.get("spesaDate") && dayStart(store.get("spesaDate")) === d ? null : d); buzz(8); return; }
+  const hv = t.closest("[data-have]");
+  if (hv) { const k = hv.dataset.have, v = !store.get(k); if (v) { burst(hv.querySelector(".te"), 10); justTog = k; } store.set(k, v ? sync.me.id : null); buzz(v ? 12 : 6); checkMilestones(k, v); return; }
+  const by = t.closest("[data-buy]");
+  if (by) {
+    const k = by.dataset.buy, v = !store.get(k);
+    by.classList.toggle("on", v); if (v) burst(by.querySelector(".box"), 10);
+    store.set(k, v ? sync.me.id : null); buzz(v ? 12 : 6);
+    if (v && shopList.every((x) => store.get(x))) { setTimeout(confetti, 200); toast("🛒 Hai preso tutto! Tocca “Fine spesa”"); }
+    return;
+  }
   const act = t.closest("[data-act]")?.dataset.act;
   if (!act) return;
-  if (act === "shop-start") { startShopping(); return; }
-  if (act === "shop-end") { endShopping(true); return; }
+  if (act === "shop-open") { openShop(); return; }
+  if (act === "shop-close") { closeShop(); return; }
+  if (act === "shop-done") { closeShop(false, true); return; }
+  if (act === "fridge") { prefs.set("fridgeOpen", !prefs.get("fridgeOpen", false)); fridgeAnim = true; buzz(prefs.get("fridgeOpen") ? [10, 30, 10] : 8); renderDispensa(); return; }
+  if (act === "pantry-all") { const prev = store.setMany(Object.fromEntries(spesaKeys().filter((k) => !store.get(k)).map((k) => [k, sync.me.id]))); toast("Dispensa completa", () => store.setMany(prev)); return; }
   if (act === "edit-avatar") { saveProfileFromInputs(); return avatarSheet(houseSheet); }
   if (act === "edit-sound") { saveProfileFromInputs(); return soundSheet(houseSheet); }
   if (act === "avatar-welcome") { saveProfileFromInputs(); return avatarSheet(() => profileSheet(true)); }
@@ -910,10 +994,10 @@ document.addEventListener("click", async (e) => {
   }
   if (act === "pick-cancel" && pickState) { const back = pickState.back; pickState = null; return back ? back() : closeSheet(); }
   if (act === "share") shareList();
-  if (act === "reset-s") resetKeys([...spesaKeys(), "spesaDate", "shopping"], "Spesa azzerata");
+  if (act === "reset-s") resetKeys(spesaKeys(), "Dispensa svuotata");
   if (act === "reset-p") resetKeys([...PREP.map((p) => "p:" + p.id), "prepDate"], "Preparazione azzerata");
   if (act === "reset-m") resetKeys(mealKeys(), "Pasti azzerati");
-  if (act === "reset-all") { closeSheet(); resetKeys([...spesaKeys(), ...PREP.map((p) => "p:" + p.id), "prepDate", "spesaDate", "shopping", ...mealKeys()], "Si ricomincia: nuova settimana"); goTo(0); }
+  if (act === "reset-all") { closeSheet(); resetKeys([...spesaKeys(), ...PREP.map((p) => "p:" + p.id), "prepDate", "shopping", ...mealKeys()], "Si ricomincia: nuova settimana"); goTo(0); }
   if (act === "invite") invite();
   if (act === "copy-link") copyLink();
   if (act === "qr") qrSheet();
@@ -943,7 +1027,7 @@ document.addEventListener("toggle", (e) => {
 
 document.addEventListener("keydown", (e) => {
   if (e.target.closest("input,textarea")) return;
-  if (e.key === "Escape") { if (scan.classList.contains("open")) closeScanner(); else if (ck) closeCook(); else closeSheet(); return; }
+  if (e.key === "Escape") { if (shopOpen) closeShop(); else if (scan.classList.contains("open")) closeScanner(); else if (ck) closeCook(); else closeSheet(); return; }
   if (e.key === "ArrowRight" || e.key === "ArrowLeft") {
     const d = e.key === "ArrowRight" ? 1 : -1;
     if (ck) return ckGo(ck.idx + d);
@@ -959,7 +1043,7 @@ goTo(page, false);
 stagger($("#p-" + page));
 timers.init();
 sync.start();
-if (shoppingNow()?.by === sync.me.id) keepAwake(true);
+if (shoppingNow()?.by === sync.me.id) setTimeout(openShop, 700); // riapre la spesa lasciata a metà
 setInterval(renderHeader, 60_000);
 if (sync.joinedFromLink) setTimeout(() => { toast(`Sei entrato in ${sync.houseName() || "una nuova casa"} 🏡`); if (!sheet.classList.contains("open") && !ck) profileSheet(true); }, 1200);
 else if (!sync.me.first) setTimeout(() => { if (!sheet.classList.contains("open") && !ck) profileSheet(true); }, 900);

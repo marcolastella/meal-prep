@@ -20,7 +20,7 @@ export const SPESA = [
   { id: "ce", name: "Cereali", emoji: "🌾", items: [
     "130 g di couscous (¾ di tazza)", "400 g di pasta (rigatoni)", "6 fette di pane",
   ]},
-  { id: "di", name: "Dispensa", emoji: "🫙", items: [
+  { id: "di", name: "Conserve e condimenti", emoji: "🫙", items: [
     "6 peperoni arrostiti", "180 g di pesto verde (¾ di tazza)", "3 dadi vegetali",
     "3 cucchiai di salsa di soia (≈ 45 ml)", "2½ cucchiai di aceto bianco (≈ 37 ml)",
     "1 cucchiaio di amido di mais (≈ 8 g)", "Olio di semi, q.b.",
@@ -72,3 +72,75 @@ export const PASTI = [
     i: ["3 tazze di stufato di lenticchie (≈ 720 ml, usa tutto quello che resta)", "2 tazze di acqua bollente (≈ 480 ml)", "½ dado vegetale", "1 peperone arrostito", "2 cucchiaini di curry (≈ 4 g)", "2 tazze di spinaci (≈ 60 g)", "2 fette di pane tostato", "½ limone, succo"],
     s: ["In una pentola scalda stufato, acqua, dado, peperone e curry per circa 5–8 minuti, finché è ben calda.", "Frulla con il frullatore a immersione, oppure lascia a pezzi (in quel caso trita prima il peperone).", "Unisci gli spinaci e, se vuoi più liquida, altra acqua.", "Intanto tosta il pane (2–3 minuti).", "Servi con il pane e una spruzzata di limone."] },
 ];
+
+// ---------------------------------------------------------------
+// Ingredienti per singolo passaggio (modalità cucina): [quantità, ingrediente, nota]
+// Allineati uno a uno con i passaggi "s" di ogni ricetta.
+// ---------------------------------------------------------------
+const STEP_ING = {
+  lenticchie: [
+    [["1½ cucchiai", "olio", "≈ 22 ml"], ["3", "cipolle tritate fini"]],
+    [["1 cucchiaio", "zenzero grattugiato", "≈ 6 g"]],
+    [["4", "pomodori a pezzi"], ["2", "dadi vegetali"], ["510 g", "lenticchie rosse, sciacquate"], ["600 ml", "acqua"]],
+    [],
+  ],
+  pasta: [[["400 g", "pasta (rigatoni)"]], [["1 cucchiaino", "olio", "≈ 5 ml · facoltativo"]]],
+  tofu: [
+    [["325 g", "tofu compatto, a fette da ½ cm"], ["2 cucchiai", "amido di mais", "≈ 16 g"], ["¼ cucchiaino", "sale", "≈ 1,5 g"]],
+    [["1 cucchiaio", "olio", "≈ 15 ml"]],
+    [],
+  ],
+  couscous: [[["130 g", "couscous"], ["½", "dado vegetale sbriciolato"], ["180 ml", "acqua bollente"]], [], []],
+  zucchine: [[["1 cucchiaio", "olio", "≈ 15 ml"], ["2", "zucchine a pezzi da 1 cm"]], [["1 cucchiaino", "curry", "≈ 2 g"], ["½ cucchiaino", "sale", "≈ 3 g"]]],
+  salsa: [[["3", "peperoni arrostiti"], ["1½ tazze", "hummus", "≈ 370 g"], ["3 cucchiai", "salsa di soia", "≈ 45 ml"], ["2½ cucchiai", "aceto", "≈ 37 ml"]]],
+  crude: [[["3", "carote"]], [["6 tazze", "spinaci baby"], ["1", "pomodoro a pezzi"]]],
+  insalata: [
+    [["½", "della pasta cotta"], ["½", "delle zucchine cotte"], ["⅓", "delle carote grattugiate"], ["1 tazza", "spinaci", "≈ 30 g"], ["1", "pomodoro a pezzi"], ["¼ tazza", "prezzemolo", "≈ 15 g · facoltativo"]],
+    [["½", "della salsa all’hummus"]],
+  ],
+  panino: [
+    [["4 fette", "pane"], ["¼ tazza", "hummus", "≈ 60 g"], ["¼ tazza", "pesto", "≈ 60 g"]],
+    [["1 tazza", "spinaci", "≈ 30 g"], ["2", "peperoni arrostiti"], ["½", "del tofu cotto"], ["1", "avocado a fette"]],
+    [["¼", "limone a spicchi"]],
+  ],
+  bowl: [
+    [["Tutto", "il couscous"], ["1 tazza", "stufato di lenticchie", "≈ 240 ml"], ["⅓", "delle carote grattugiate"], ["½", "delle zucchine cotte"], ["½", "del tofu cotto"]],
+    [["½", "della salsa all’hummus"]],
+  ],
+  ragu: [
+    [["2 cucchiaini", "olio", "≈ 10 ml"], ["2 tazze", "stufato di lenticchie", "≈ 480 ml"], ["⅓", "delle carote grattugiate"], ["1 cucchiaino", "erbe italiane", "≈ 1,5 g"], ["½ cucchiaino", "aglio in polvere", "≈ 1,5 g"], ["¼ cucchiaino", "sale", "≈ 1,5 g"]],
+    [["½ tazza", "pesto", "≈ 120 g"], ["½", "della pasta cotta"], ["2 tazze", "spinaci", "≈ 60 g"]],
+    [["q.b.", "peperoncino", "facoltativo"]],
+  ],
+  zuppa: [
+    [["3 tazze", "stufato di lenticchie", "≈ 720 ml · tutto quello che resta"], ["2 tazze", "acqua bollente", "≈ 480 ml"], ["½", "dado vegetale"], ["1", "peperone arrostito"], ["2 cucchiaini", "curry", "≈ 4 g"]],
+    [],
+    [["2 tazze", "spinaci", "≈ 60 g"]],
+    [["2 fette", "pane"]],
+    [["½", "limone, il succo"]],
+  ],
+};
+for (const r of [...PREP, ...PASTI]) {
+  r.si = STEP_ING[r.id] || r.s.map(() => []);
+  if (r.si.length !== r.s.length) console.warn("Passaggi e ingredienti non allineati:", r.id);
+}
+
+// Emoji per ogni articolo della dispensa (stesso ordine di SPESA[].items).
+const PANTRY_EMOJI = {
+  fv: ["🍅", "🥕", "🧅", "🥒", "🥑", "🍋", "🥬", "🌿", "🫚"],
+  pr: ["🧈", "🥣", "🫘"],
+  ce: ["🌾", "🍝", "🍞"],
+  di: ["🫑", "🫙", "🧊", "🍶", "🍾", "🌽", "🫒"],
+  sp: ["🍛", "🌱", "🧄", "🧂", "🌶️"],
+};
+for (const g of SPESA) g.em = PANTRY_EMOJI[g.id] || g.items.map(() => g.emoji);
+
+// Nome breve e quantità per i riquadri della dispensa.
+const PANTRY_SHORT = {
+  fv: [["Pomodori", "5 · 700 g"], ["Carote", "3 · 500 g"], ["Cipolle", "3 · 400 g"], ["Zucchine", "2 · 640 g"], ["Avocado", "1"], ["Limone", "1"], ["Spinaci baby", "180 g"], ["Prezzemolo", "15 g · facolt."], ["Zenzero", "6 g o aglio"]],
+  pr: [["Tofu compatto", "325 g"], ["Hummus", "430 g"], ["Lenticchie rosse", "510 g"]],
+  ce: [["Couscous", "130 g"], ["Pasta", "400 g"], ["Pane", "6 fette"]],
+  di: [["Peperoni arrostiti", "6"], ["Pesto verde", "180 g"], ["Dadi vegetali", "3"], ["Salsa di soia", "45 ml"], ["Aceto bianco", "37 ml"], ["Amido di mais", "8 g"], ["Olio di semi", "q.b."]],
+  sp: [["Curry", "6 g"], ["Erbe italiane", "1,5 g"], ["Aglio in polvere", "1,5 g"], ["Sale e pepe", "q.b."], ["Peperoncino", "facoltativo"]],
+};
+for (const g of SPESA) g.short = PANTRY_SHORT[g.id];
